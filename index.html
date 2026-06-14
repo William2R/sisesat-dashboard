@@ -3,1095 +3,463 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISESAT · Centro de Control de Flota</title>
+    <title>SISESAT · Sistema de Gestión de Flota Pesquera</title>
 
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
-        :root{
-            --bg-0:#0a0a0b;
-            --bg-1:#121214;
-            --bg-2:#1a1a1d;
-            --bg-3:#232327;
-            --border:#2e2e33;
-            --text-0:#f5f5f6;
-            --text-1:#a1a1a8;
-            --text-2:#6b6b72;
-            --accent:#ffffff;
-            --ok:#9fe6b8;
-            --warn:#ffd479;
-            --danger:#ff8a8a;
-            --sidebar-w:248px;
-            --sidebar-w-collapsed:76px;
+        :root {
+            --bg-main: #0a0c14;
+            --bg-card: #111422;
+            --bg-inner: #171b2f;
+            --border: #232a45;
+            --accent-blue: #0B2545; /* Azul oscuro solicitado */
+            --text-muted: #8ea0c5;
         }
-
-        *{ box-sizing:border-box; margin:0; padding:0; }
-
-        html,body{
-            height:100%;
-            font-family:'Inter',sans-serif;
-            background:var(--bg-0);
-            color:var(--text-0);
-            overflow:hidden;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
         }
-
-        ::-webkit-scrollbar{ width:6px; height:6px; }
-        ::-webkit-scrollbar-track{ background:transparent; }
-        ::-webkit-scrollbar-thumb{ background:var(--bg-3); border-radius:4px; }
-
-        /* ============ LAYOUT ============ */
-        .app{
-            display:flex;
-            height:100vh;
-            width:100vw;
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
         }
-
-        /* ============ SIDEBAR ============ */
-        .sidebar{
-            width:var(--sidebar-w);
-            min-width:var(--sidebar-w);
-            background:var(--bg-1);
-            border-right:1px solid var(--border);
-            display:flex;
-            flex-direction:column;
-            transition:width .25s ease, min-width .25s ease;
-            z-index:50;
+        /* Personalización del Popup Industrial similar a la referencia */
+        .leaflet-popup-content-wrapper {
+            background: #111422 !important;
+            color: #ffffff !important;
+            border: 1px solid #232a45 !important;
+            border-radius: 12px !important;
+            padding: 0px !important;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
         }
-        .sidebar.collapsed{
-            width:var(--sidebar-w-collapsed);
-            min-width:var(--sidebar-w-collapsed);
+        .leaflet-popup-content {
+            margin: 0px !important;
+            width: 280px !important;
         }
-
-        .sidebar-header{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            padding:20px 18px;
-            border-bottom:1px solid var(--border);
-            min-height:64px;
+        .leaflet-popup-tip {
+            background: #111422 !important;
+            border: 1px solid #232a45 !important;
         }
-
-        .brand{
-            display:flex;
-            align-items:center;
-            gap:10px;
-            overflow:hidden;
-        }
-
-        .brand svg{ flex-shrink:0; }
-
-        .brand-text{
-            display:flex;
-            flex-direction:column;
-            line-height:1.1;
-            white-space:nowrap;
-            opacity:1;
-            transition:opacity .15s ease;
-        }
-        .sidebar.collapsed .brand-text{ opacity:0; width:0; }
-
-        .brand-text strong{
-            font-size:16px;
-            font-weight:800;
-            letter-spacing:0.5px;
-        }
-        .brand-text span{
-            font-size:10px;
-            color:var(--text-2);
-            font-family:'JetBrains Mono',monospace;
-            letter-spacing:1px;
-        }
-
-        .collapse-btn{
-            background:var(--bg-2);
-            border:1px solid var(--border);
-            border-radius:8px;
-            width:30px;
-            height:30px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            cursor:pointer;
-            color:var(--text-1);
-            flex-shrink:0;
-            transition:all .15s ease;
-        }
-        .collapse-btn:hover{ background:var(--bg-3); color:var(--text-0); }
-        .sidebar.collapsed .collapse-btn{ transform:rotate(180deg); }
-
-        .nav{
-            flex:1;
-            padding:14px 12px;
-            display:flex;
-            flex-direction:column;
-            gap:4px;
-            overflow-y:auto;
-        }
-
-        .nav-item{
-            display:flex;
-            align-items:center;
-            gap:12px;
-            padding:11px 12px;
-            border-radius:10px;
-            color:var(--text-1);
-            cursor:pointer;
-            white-space:nowrap;
-            overflow:hidden;
-            transition:all .15s ease;
-            font-size:14px;
-            font-weight:500;
-        }
-        .nav-item svg{ flex-shrink:0; width:20px; height:20px; }
-        .nav-item span{
-            opacity:1;
-            transition:opacity .15s ease;
-        }
-        .sidebar.collapsed .nav-item span{ opacity:0; width:0; }
-        .sidebar.collapsed .nav-item{ justify-content:center; padding:11px; }
-
-        .nav-item:hover{
-            background:var(--bg-2);
-            color:var(--text-0);
-        }
-        .nav-item.active{
-            background:var(--bg-3);
-            color:var(--text-0);
-            box-shadow: inset 0 0 0 1px var(--border);
-        }
-        .nav-item.active svg{ stroke:var(--text-0); }
-
-        .sidebar-footer{
-            padding:16px;
-            border-top:1px solid var(--border);
-            display:flex;
-            align-items:center;
-            gap:10px;
-            overflow:hidden;
-        }
-        .status-dot{
-            width:8px; height:8px; border-radius:50%;
-            background:var(--ok);
-            flex-shrink:0;
-            box-shadow:0 0 8px var(--ok);
-            animation:pulse 2s infinite;
-        }
-        @keyframes pulse{
-            0%,100%{ opacity:1; }
-            50%{ opacity:.4; }
-        }
-        .sidebar-footer-text{
-            font-size:11px;
-            color:var(--text-2);
-            font-family:'JetBrains Mono',monospace;
-            white-space:nowrap;
-            overflow:hidden;
-            transition:opacity .15s ease;
-        }
-        .sidebar.collapsed .sidebar-footer-text{ opacity:0; width:0; }
-
-        /* ============ MAIN AREA ============ */
-        .main{
-            flex:1;
-            display:flex;
-            flex-direction:column;
-            height:100vh;
-            overflow:hidden;
-            background:var(--bg-0);
-        }
-
-        .topbar{
-            height:64px;
-            min-height:64px;
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            padding:0 24px;
-            border-bottom:1px solid var(--border);
-            background:var(--bg-1);
-        }
-        .topbar h1{
-            font-size:17px;
-            font-weight:700;
-        }
-        .topbar-sub{
-            font-size:12px;
-            color:var(--text-2);
-            font-family:'JetBrains Mono',monospace;
-            margin-top:2px;
-        }
-        .topbar-right{
-            display:flex;
-            align-items:center;
-            gap:16px;
-        }
-        .vessel-pill{
-            display:flex;
-            align-items:center;
-            gap:8px;
-            background:var(--bg-2);
-            border:1px solid var(--border);
-            padding:7px 14px;
-            border-radius:999px;
-            font-size:12px;
-            font-family:'JetBrains Mono',monospace;
-            color:var(--text-1);
-        }
-
-        .view{
-            flex:1;
-            overflow:hidden;
-            display:none;
-            position:relative;
-        }
-        .view.active{ display:flex; flex-direction:column; }
-
-        /* ============ MAP VIEW ============ */
-        #view-map{ flex-direction:row; }
-        #map{
-            flex:1;
-            height:100%;
-            background:var(--bg-1);
-            filter: saturate(0.05) contrast(1.05) brightness(0.95);
-        }
-
-        .map-fleet-panel{
-            width:300px;
-            background:var(--bg-1);
-            border-left:1px solid var(--border);
-            display:flex;
-            flex-direction:column;
-            padding:18px;
-            overflow-y:auto;
-        }
-        .map-fleet-panel h3{
-            font-size:12px;
-            text-transform:uppercase;
-            letter-spacing:1.2px;
-            color:var(--text-2);
-            font-weight:700;
-            margin-bottom:12px;
-        }
-        .vessel-card{
-            background:var(--bg-2);
-            border:1px solid var(--border);
-            border-radius:12px;
-            padding:12px 14px;
-            margin-bottom:8px;
-            cursor:pointer;
-            transition:all .15s ease;
-        }
-        .vessel-card:hover{ border-color:var(--text-2); }
-        .vessel-card.active{
-            border-color:var(--text-0);
-            background:var(--bg-3);
-        }
-        .vessel-card-top{
-            display:flex;
-            justify-content:space-between;
-            align-items:flex-start;
-            gap:8px;
-        }
-        .vessel-card-name{
-            font-weight:700;
-            font-size:13px;
-            font-family:'JetBrains Mono',monospace;
-            letter-spacing:0.3px;
-        }
-        .badge{
-            font-size:9px;
-            font-weight:700;
-            padding:3px 8px;
-            border-radius:999px;
-            font-family:'JetBrains Mono',monospace;
-            letter-spacing:0.5px;
-            white-space:nowrap;
-        }
-        .badge-ok{ background:rgba(159,230,184,0.12); color:var(--ok); border:1px solid rgba(159,230,184,0.25); }
-        .badge-warn{ background:rgba(255,212,121,0.12); color:var(--warn); border:1px solid rgba(255,212,121,0.25); }
-        .badge-danger{ background:rgba(255,138,138,0.12); color:var(--danger); border:1px solid rgba(255,138,138,0.25); }
-        .badge-neutral{ background:var(--bg-3); color:var(--text-2); border:1px solid var(--border); }
-
-        .vessel-card-meta{
-            display:flex;
-            gap:14px;
-            margin-top:8px;
-            font-size:11px;
-            color:var(--text-1);
-            font-family:'JetBrains Mono',monospace;
-        }
-        .vessel-card-meta b{ color:var(--text-0); }
-
-        .map-coords-overlay{
-            position:absolute;
-            bottom:18px;
-            left:18px;
-            background:rgba(18,18,20,0.85);
-            border:1px solid var(--border);
-            border-radius:10px;
-            padding:8px 14px;
-            font-size:11px;
-            font-family:'JetBrains Mono',monospace;
-            color:var(--text-1);
-            backdrop-filter:blur(6px);
-            z-index:400;
-        }
-
-        /* ============ STATS VIEW ============ */
-        #view-stats{ padding:24px; overflow-y:auto; gap:18px; }
-
-        .stats-grid{
-            display:grid;
-            grid-template-columns:repeat(4,1fr);
-            gap:14px;
-            margin-bottom:18px;
-        }
-        .stat-card{
-            background:var(--bg-1);
-            border:1px solid var(--border);
-            border-radius:14px;
-            padding:16px 18px;
-        }
-        .stat-card .label{
-            font-size:11px;
-            text-transform:uppercase;
-            letter-spacing:1px;
-            color:var(--text-2);
-            font-weight:600;
-            margin-bottom:8px;
-        }
-        .stat-card .value{
-            font-size:26px;
-            font-weight:800;
-            font-family:'JetBrains Mono',monospace;
-            display:flex;
-            align-items:baseline;
-            gap:6px;
-        }
-        .stat-card .value .unit{
-            font-size:13px;
-            color:var(--text-2);
-            font-weight:500;
-        }
-
-        .panel{
-            background:var(--bg-1);
-            border:1px solid var(--border);
-            border-radius:16px;
-            padding:20px;
-        }
-        .panel h3{
-            font-size:15px;
-            font-weight:700;
-            margin-bottom:4px;
-        }
-        .panel .sub{
-            font-size:12px;
-            color:var(--text-2);
-            margin-bottom:14px;
-            font-family:'JetBrains Mono',monospace;
-        }
-        .chart-box{ height:320px; }
-
-        .fleet-table-wrap{ margin-top:18px; }
-        table{ width:100%; border-collapse:collapse; font-size:13px; }
-        th{
-            text-align:left;
-            font-size:11px;
-            text-transform:uppercase;
-            letter-spacing:1px;
-            color:var(--text-2);
-            font-weight:600;
-            padding:10px 14px;
-            border-bottom:1px solid var(--border);
-        }
-        td{
-            padding:12px 14px;
-            border-bottom:1px solid var(--border);
-            color:var(--text-1);
-        }
-        td.mono{ font-family:'JetBrains Mono',monospace; color:var(--text-0); }
-        tr:last-child td{ border-bottom:none; }
-        tr:hover td{ background:var(--bg-2); }
-
-        /* ============ EMPTY / LOADING ============ */
-        .empty-state{
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
-            height:100%;
-            color:var(--text-2);
-            gap:10px;
-            text-align:center;
-            padding:40px;
-        }
-        .empty-state svg{ opacity:0.3; }
-        .empty-state p{ font-size:13px; max-width:320px; }
-
-        /* Leaflet popup theming */
-        .leaflet-popup-content-wrapper{
-            background:var(--bg-1);
-            color:var(--text-0);
-            border-radius:12px;
-            border:1px solid var(--border);
-        }
-        .leaflet-popup-tip{ background:var(--bg-1); border:1px solid var(--border); }
-        .leaflet-popup-content{ margin:12px 14px; }
-        .leaflet-container a.leaflet-popup-close-button{ color:var(--text-2); }
-
-        .popup-vessel{ font-family:'Inter',sans-serif; }
-        .popup-vessel h4{
-            font-size:13px;
-            font-weight:700;
-            font-family:'JetBrains Mono',monospace;
-            margin-bottom:6px;
-            padding-bottom:6px;
-            border-bottom:1px solid var(--border);
-        }
-        .popup-vessel .row{
-            display:flex;
-            justify-content:space-between;
-            font-size:12px;
-            color:var(--text-1);
-            padding:2px 0;
-        }
-        .popup-vessel .row b{ color:var(--text-0); font-family:'JetBrains Mono',monospace; }
-
-        /* ============ RESPONSIVE ============ */
-        @media (max-width:1024px){
-            .sidebar{ position:fixed; height:100vh; }
-            .sidebar:not(.collapsed){
-                width:240px;
-                box-shadow:0 0 40px rgba(0,0,0,0.5);
-            }
-            .sidebar.collapsed{ width:0; min-width:0; border:none; }
-            .main{ width:100%; }
-            .map-fleet-panel{ width:240px; }
-            .stats-grid{ grid-template-columns:repeat(2,1fr); }
-        }
-        @media (max-width:640px){
-            #view-map{ flex-direction:column; }
-            .map-fleet-panel{
-                width:100%;
-                height:180px;
-                border-left:none;
-                border-top:1px solid var(--border);
-                flex-direction:row;
-                gap:8px;
-            }
-            .map-fleet-panel h3{ display:none; }
-            .vessel-card{ min-width:200px; margin-right:8px; }
-            .stats-grid{ grid-template-columns:repeat(2,1fr); }
-            .topbar-sub{ display:none; }
-        }
+        /* Ocultar scrollbars de forma limpia */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     </style>
 </head>
-<body>
+<body class="text-gray-100 min-h-screen flex flex-col">
 
-<div class="app">
-
-    <!-- ============ SIDEBAR ============ -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="brand">
-                <!-- Narval icon -->
-                <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M58 30c-4-6-12-10-20-10-3 0-6 .5-8.5 1.5L8 18l6 11-6 11 21.5-3.5C32 38.5 35 39 38 39c8 0 16-4 20-10z" fill="#f5f5f6"/>
-                    <path d="M58 30L62 24" stroke="#f5f5f6" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="40" cy="27" r="2" fill="#0a0a0b"/>
-                    <path d="M16 24l-5-3M16 36l-5 3" stroke="#f5f5f6" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
-                <div class="brand-text">
-                    <strong>SISESAT</strong>
-                    <span>TYPE D · NARVAL</span>
-                </div>
+    <header class="bg-[#111422] border-b border-[#232a45] px-6 py-4 flex flex-wrap justify-between items-center gap-4 z-50 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600/10 text-blue-400 border border-blue-500/30 p-2.5 rounded-xl flex items-center justify-center">
+                <i class="ph-bold ph-radar text-xl"></i>
             </div>
-            <div class="collapse-btn" id="collapseBtn" title="Plegar menú">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <div>
+                <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-2">
+                    SISESAT <span class="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded font-mono font-normal">MONITOREO</span>
+                </h1>
+                <p class="text-xs text-gray-400">Terminal de Posicionamiento Satelital de Naves</p>
             </div>
         </div>
 
-        <nav class="nav">
-            <div class="nav-item active" data-view="map">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                <span>Mapa de Flota</span>
-            </div>
-            <div class="nav-item" data-view="stats">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span>Estadísticas</span>
-            </div>
-            <div class="nav-item" data-view="fleet">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-                <span>Embarcaciones</span>
-            </div>
-            <div class="nav-item" data-view="alerts">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                <span>Alertas</span>
-            </div>
+        <nav class="flex space-x-1 bg-[#171b2f] p-1 rounded-xl border border-[#232a45]">
+            <button onclick="switchTab('mapa')" id="btn-mapa" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-blue-600 text-white shadow-md">
+                <i class="ph ph-map-trifold"></i> Mapa de Flota
+            </button>
+            <button onclick="switchTab('estadisticas')" id="btn-estadisticas" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-200 transition-all flex items-center gap-2">
+                <i class="ph ph-chart-bar"></i> Estadísticas
+            </button>
+            <button onclick="switchTab('embarcaciones')" id="btn-embarcaciones" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-200 transition-all flex items-center gap-2">
+                <i class="ph ph-boat"></i> Embarcaciones
+            </button>
         </nav>
 
-        <div class="sidebar-footer">
-            <div class="status-dot" id="connDot"></div>
-            <div class="sidebar-footer-text" id="connText">AWS API · Conectado</div>
+        <div class="flex items-center space-x-2 text-xs bg-[#171b2f] border border-[#232a45] px-3 py-2 rounded-xl">
+            <span id="connDot" class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+            <span id="connText" class="text-gray-300 font-mono">AWS Link Activo</span>
         </div>
-    </aside>
+    </header>
 
-    <!-- ============ MAIN ============ -->
-    <div class="main">
-        <div class="topbar">
-            <div>
-                <h1 id="viewTitle">Mapa de Flota</h1>
-                <div class="topbar-sub" id="viewSub">Posicionamiento satelital en tiempo real · SISESAT Tipo D</div>
-            </div>
-            <div class="topbar-right">
-                <div class="vessel-pill">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span id="lastUpdatePill">Sin datos</span>
+    <main class="flex-1 p-6 max-w-[1600px] w-full mx-auto relative">
+        
+        <section id="sec-mapa" class="tab-content h-[calc(100vh-160px)] min-h-[550px] relative">
+            <div class="bg-[#111422] border border-[#232a45] rounded-2xl p-2 h-full shadow-2xl relative overflow-hidden">
+                <div id="map" class="w-full h-full rounded-xl z-10 bg-[#0e1420]"></div>
+                <div class="absolute bottom-4 left-4 RegaladoZIndex bg-[#111422]/90 border border-[#232a45] px-3 py-2 rounded-xl text-xs font-mono text-gray-300 z-[500] shadow-xl backdrop-blur-sm">
+                    LAT: <span id="lbl-lat" class="text-blue-400">--</span> | LON: <span id="lbl-lon" class="text-blue-400">--</span>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- ===== VISTA: MAPA ===== -->
-        <div class="view active" id="view-map">
-            <div id="map"></div>
-            <div class="map-coords-overlay">
-                LAT <span id="lblLat">--</span> &nbsp;·&nbsp; LON <span id="lblLon">--</span>
+        <section id="sec-estadisticas" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-[#111422] border border-[#232a45] rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center text-center">
+                <div class="w-full max-w-[260px] h-40 bg-[#171b2f] rounded-xl border border-[#232a45] flex items-center justify-center relative overflow-hidden group mb-4">
+                    <svg class="w-32 h-32 text-gray-500 group-hover:text-blue-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 21h20" />
+                        <path d="M19.3 14.8C21.1 13.5 22 11.7 22 10V4h-3v3h-4V4h-3v5c0 .7-.2 1.4-.6 1.9L9.3 14H4v3h14.3z" />
+                        <path d="M14 14V9" />
+                        <path d="M9 14v-2" />
+                    </svg>
+                    <div class="absolute bottom-2 bg-black/40 border border-white/5 px-2.5 py-0.5 rounded text-[11px] text-gray-400 font-mono">MODEL: SISESAT-D</div>
+                </div>
+                <h3 id="stat-vessel-id" class="text-lg font-bold text-white tracking-wide">VESSEL_UNAC_TEST</h3>
+                <p class="text-xs text-gray-400 mt-1">Puerto de Operación: Callao, Perú</p>
+                
+                <div class="w-full mt-6 space-y-4 text-left">
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1">
+                            <span class="text-gray-400">Porcentaje de Carga (SOC)</span>
+                            <span id="stat-soc-txt" class="text-emerald-400 font-mono">0%</span>
+                        </div>
+                        <div class="w-full bg-[#171b2f] h-2 rounded-full border border-[#232a45]">
+                            <div id="stat-soc-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1">
+                            <span class="text-gray-400">Velocidad Promedio</span>
+                            <span id="stat-speed-txt" class="text-blue-400 font-mono">0.0 nudos</span>
+                        </div>
+                        <div class="w-full bg-[#171b2f] h-2 rounded-full border border-[#232a45]">
+                            <div id="stat-speed-bar" class="bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1">
+                            <span class="text-gray-400">Tiempo de Inactividad (Fondeado)</span>
+                            <span id="stat-idle-txt" class="text-amber-400 font-mono">0%</span>
+                        </div>
+                        <div class="w-full bg-[#171b2f] h-2 rounded-full border border-[#232a45]">
+                            <div id="stat-idle-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="map-fleet-panel">
-                <h3>Embarcaciones</h3>
-                <div id="fleetListMap"></div>
-            </div>
-        </div>
 
-        <!-- ===== VISTA: ESTADÍSTICAS ===== -->
-        <div class="view" id="view-stats">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="label">Velocidad</div>
-                    <div class="value"><span id="statSpeed">0.0</span><span class="unit">nudos</span></div>
+            <div class="lg:col-span-2 bg-[#111422] border border-[#232a45] rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h3 class="text-md font-bold text-white mb-1">Historial Analítico de la Batería</h3>
+                    <p class="text-xs text-gray-400 mb-4">Comportamiento del voltaje y descarga del módulo electrónico</p>
                 </div>
-                <div class="stat-card">
-                    <div class="label">Rumbo</div>
-                    <div class="value"><span id="statCourse">0</span><span class="unit">grados</span></div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Batería</div>
-                    <div class="value"><span id="statBattery">0.00</span><span class="unit">V</span></div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Estado</div>
-                    <div class="value" style="font-size:16px;" id="statStatus">—</div>
+                <div class="h-[320px]">
+                    <canvas id="chart-voltage"></canvas>
                 </div>
             </div>
+        </section>
 
-            <div class="panel">
-                <h3>Curva de Voltaje de Batería de Respaldo</h3>
-                <div class="sub" id="statsVesselLabel">Selecciona una embarcación</div>
-                <div class="chart-box"><canvas id="chartVoltage"></canvas></div>
+        <section id="sec-embarcaciones" class="tab-content hidden space-y-4">
+            <div class="bg-[#111422] border border-[#232a45] rounded-2xl p-6 shadow-xl">
+                <h3 class="text-md font-bold text-white mb-1">Inventario de Naves y Monitoreo de Alertas</h3>
+                <p class="text-xs text-gray-400 mb-4">Haz clic sobre cualquier embarcación listada para expandir y auditar el historial de datos entrantes.</p>
+                
+                <div id="vessel-accordion-container" class="space-y-3">
+                    </div>
             </div>
-        </div>
+        </section>
 
-        <!-- ===== VISTA: EMBARCACIONES ===== -->
-        <div class="view" id="view-fleet" style="overflow-y:auto; padding:24px;">
-            <div class="panel">
-                <h3>Flota Registrada</h3>
-                <div class="sub">Listado de terminales SISESAT Tipo D activos y su última telemetría reportada</div>
-                <div class="fleet-table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Vessel ID</th>
-                                <th>Última actualización</th>
-                                <th>Velocidad</th>
-                                <th>Rumbo</th>
-                                <th>Batería</th>
-                                <th>Estado</th>
+    </main>
+
+    <footer class="bg-[#111422] border-t border-[#232a45] py-3.5 px-6 text-center text-xs text-gray-500 font-mono mt-auto">
+        PROYECTO DE INVESTIGACIÓN SISESAT D · UNAC · 2026
+    </footer>
+
+    <script>
+        // CONFIGURACIÓN DE LA URL DE AWS API GATEWAY
+        const API_URL = "https://pzjoc8ic68.execute-api.us-east-2.amazonaws.com/dashboard/monitor";
+        
+        let map, shipMarker, pathPolyline;
+        let voltageChart;
+        let currentVesselId = "VESSEL_UNAC_TEST";
+        let cacheFleetData = {};
+
+        // Icono SVG de barco estilizado en Color Azul Oscuro solicitado (#0B2545)
+        const boatSvgIcon = L.divIcon({
+            className: 'custom-boat-icon',
+            html: `
+                <div class="relative w-10 h-10 flex items-center justify-center drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]">
+                    <svg viewBox="0 0 24 24" class="w-8 h-8" fill="#0B2545" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 10V4h-3v3h-4V4h-3v5c0 .7-.2 1.4-.6 1.9L9.3 14H4v3h14.3z"/>
+                        <path d="M2 21h20"/>
+                    </svg>
+                    <span class="absolute top-0 right-0 flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                    </span>
+                </div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        window.onload = function() {
+            initMap();
+            initCharts();
+            syncDataEngine();
+            setInterval(syncDataEngine, 12000); // Consulta cíclica automática
+        };
+
+        // 1. INICIALIZAR MAPA SATELITAL A COLOR
+        function initMap() {
+            map = L.map('map', { attributionControl: false }).setView([-12.0464, -77.15], 10);
+
+            // Capa Satelital Orgánica a color sin distorsiones (Esri World Imagery)
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 17
+            }).addTo(map);
+
+            shipMarker = L.marker([0, 0], { icon: boatSvgIcon }).addTo(map);
+            pathPolyline = L.polyline([], { color: '#00d2ff', weight: 3, opacity: 0.85, dashArray: '4, 6' }).addTo(map);
+        }
+
+        // 2. MOTOR ASÍNCRONO DE SINCRONIZACIÓN CON AWS
+        function syncDataEngine() {
+            // Consulta individual del barco activo para el mapa y gráficas
+            fetch(`${API_URL}?vessel_id=${currentVesselId}`)
+                .then(res => { if(!res.ok) throw new Error(); return res.json(); })
+                .then(data => {
+                    cacheFleetData[currentVesselId] = data;
+                    processMapAndStats(data);
+                    updateConnStatus(true);
+                })
+                .catch(() => updateConnStatus(false));
+
+            // Consulta colectiva para armar la sección de "Embarcaciones" con su historial completo
+            fetch(`${API_URL}?list=true`)
+                .then(res => res.json())
+                .then(fleetList => {
+                    buildAccordionFleet(fleetList);
+                })
+                .catch(err => console.error("Error al sincronizar inventario de flota:", err));
+        }
+
+        // 3. PROCESAR MAPA Y COMPONENTES ANALÍTICOS
+        function processMapAndStats(data) {
+            const status = data.current_status;
+            const history = data.route_history || [];
+
+            // Actualizar etiquetas de telemetría flotante
+            document.getElementById('lbl-lat').innerText = parseFloat(status.latitude).toFixed(5);
+            document.getElementById('lbl-lon').innerText = parseFloat(status.longitude).toFixed(5);
+
+            // Mover Marcador y centrar cámara del mapa
+            const pos = [parseFloat(status.latitude), parseFloat(status.longitude)];
+            shipMarker.setLatLng(pos);
+            
+            // Dibujar ruta histórica o estela
+            const track = history.map(h => [parseFloat(h.latitude), parseFloat(h.longitude)]);
+            pathPolyline.setLatLngs(track);
+
+            // CÁLCULO DE SOC MATEMÁTICO (Rango aproximado de batería Li-ion: 3.2V a 4.2V)
+            const volt = parseFloat(status.battery_voltage) || 0.0;
+            let soc = Math.round(((volt - 3.2) / (4.2 - 3.2)) * 100);
+            soc = Math.max(0, Math.min(100, soc)); // Forzar límites entre 0 y 100%
+
+            // REDISEÑO POPUP INDUSTRIAL EXCLUSIVO (Estilo Ventana de Diálogo de la imagen)
+            const alertHtml = status.alert_flags.panic_button === 1 
+                ? `<div class="bg-red-600/20 text-red-400 border border-red-500/30 text-[11px] p-1 rounded font-bold text-center animate-pulse mb-2">💥 CRITICAL: BOTÓN DE PÁNICO</div>`
+                : status.alert_flags.tamper_open === 1
+                ? `<div class="bg-amber-600/20 text-amber-400 border border-amber-500/30 text-[11px] p-1 rounded font-bold text-center mb-2">⚠️ DETECTED: TAMPER ALARM</div>`
+                : `<div class="bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 text-[11px] p-1 rounded font-bold text-center mb-2">✓ SISTEMA OPERANDO NORMAL</div>`;
+
+            shipMarker.bindPopup(`
+                <div class="w-full text-sm font-sans bg-[#111422]">
+                    <div class="bg-[#171b2f] border-b border-[#232a45] px-3 py-2 flex justify-between items-center">
+                        <span class="font-bold text-white tracking-wide flex items-center gap-1"><i class="ph ph-shield-check text-blue-400"></i> ${data.vessel_id}</span>
+                        <span class="text-[10px] font-mono text-gray-400 bg-black/30 px-1.5 py-0.5 rounded">ONLINE</span>
+                    </div>
+                    <div class="p-3">
+                        ${alertHtml}
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div class="bg-[#171b2f] p-1.5 rounded border border-[#232a45]"><p class="text-[10px] text-gray-500">VELOCIDAD</p><p class="text-white font-bold">${parseFloat(status.speed_knots).toFixed(1)} Nds</p></div>
+                            <div class="bg-[#171b2f] p-1.5 rounded border border-[#232a45]"><p class="text-[10px] text-gray-500">RUMBO</p><p class="text-amber-400 font-bold">${status.course_degrees}°</p></div>
+                            <div class="bg-[#171b2f] p-1.5 rounded border border-[#232a45]"><p class="text-[10px] text-gray-500">VOLTAJE</p><p class="text-emerald-400 font-bold">${volt.toFixed(2)}V</p></div>
+                            <div class="bg-[#171b2f] p-1.5 rounded border border-[#232a45]"><p class="text-[10px] text-gray-500">SOC HARDWARE</p><p class="text-cyan-400 font-bold">${soc}%</p></div>
+                        </div>
+                        <p class="text-[10px] text-gray-400 text-center mt-2.5 border-t border-gray-800/60 pt-1.5 font-mono">TS: ${status.last_update}</p>
+                    </div>
+                </div>
+            `);
+
+            // ACTUALIZAR APARTADO DE ESTADÍSTICAS (SECCIÓN 2)
+            document.getElementById('stat-vessel-id').innerText = data.vessel_id;
+            
+            // Barra SOC
+            document.getElementById('stat-soc-txt').innerText = `${soc}%`;
+            document.getElementById('stat-soc-bar').style.width = `${soc}%`;
+
+            // Calcular Velocidad Promedio Real de los datos en caché
+            const speeds = history.map(h => parseFloat(h.speed) || 0);
+            const avgSpeed = speeds.reduce((a,b) => a+b, 0) / (speeds.length || 1);
+            document.getElementById('stat-speed-txt').innerText = `${avgSpeed.toFixed(1)} nudos`;
+            // Normalizar barra de velocidad suponiendo un tope máximo para pesca artesanal de 15 nudos
+            const speedPct = Math.min(100, (avgSpeed / 15) * 100);
+            document.getElementById('stat-speed-bar').style.width = `${speedPct}%`;
+
+            // Calcular Tiempo de Inactividad (Puntos donde la velocidad del GPS es menor a 0.5 nudos)
+            const idlePoints = speeds.filter(s => s < 0.5).length;
+            const idlePct = Math.round((idlePoints / (speeds.length || 1)) * 100);
+            document.getElementById('stat-idle-txt').innerText = `${idlePct}% del trayecto`;
+            document.getElementById('stat-idle-bar').style.width = `${idlePct}%`;
+
+            // Actualizar Gráfico de Línea de Voltaje
+            const sortedHistory = [...history].reverse();
+            voltageChart.data.labels = sortedHistory.map(h => (h.timestamp || h.date_time || '').split(' ')[1] || 'Plot');
+            voltageChart.data.datasets[0].data = sortedHistory.map(h => parseFloat(h.battery_voltage));
+            voltageChart.update();
+        }
+
+        // 4. CONSTRUIR ACORDEÓN DESPLEGABLE DE HISTORIAL (SECCIÓN EMBARCACIONES)
+        function buildAccordionFleet(fleetList) {
+            const container = document.getElementById('vessel-accordion-container');
+            container.innerHTML = ""; // Vaciar cargador visual
+
+            fleetList.forEach(vessel => {
+                const id = vessel.vessel_id;
+                const last = vessel.last_telemetry || {};
+                
+                // Formatear alertas rápidas para la cabecera del acordeón
+                let badge = `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-xs font-mono">OK</span>`;
+                if (last.command == 56) badge = `<span class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-xs font-mono animate-pulse">PANIC ALARM</span>`;
+                if (last.command == 48) badge = `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-xs font-mono">TAMPER OPEN</span>`;
+
+                // Construcción de filas de historial para la tabla desplegable interna
+                let tableRowsHtml = "";
+                const historyArr = vessel.history || [];
+                
+                if(historyArr.length === 0) {
+                    tableRowsHtml = `<tr><td colspan="5" class="p-3 text-center text-xs text-gray-500">No hay tramas en el historial.</td></tr>`;
+                } else {
+                    historyArr.forEach(row => {
+                        tableRowsHtml += `
+                            <tr class="border-b border-gray-800/40 hover:bg-[#111422]/50 text-xs font-mono">
+                                <td class="p-2.5 text-gray-300">${row.timestamp || row.date_time}</td>
+                                <td class="p-2.5 text-blue-400">${parseFloat(row.latitude).toFixed(5)}</td>
+                                <td class="p-2.5 text-blue-400">${parseFloat(row.longitude).toFixed(5)}</td>
+                                <td class="p-2.5 text-white">${parseFloat(row.speed).toFixed(1)} Nds</td>
+                                <td class="p-2.5 text-emerald-400">${parseFloat(row.battery_voltage).toFixed(2)}V</td>
                             </tr>
-                        </thead>
-                        <tbody id="fleetTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===== VISTA: ALERTAS ===== -->
-        <div class="view" id="view-alerts" style="overflow-y:auto; padding:24px;">
-            <div class="panel">
-                <h3>Estado de Seguridad de la Flota</h3>
-                <div class="sub">Evaluación según comandos de alerta del protocolo SISESAT (botón de pánico / tamper de gabinete)</div>
-                <div id="alertsList" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;"></div>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<script>
-/* =========================================================
-   CONFIGURACIÓN
-   ========================================================= */
-const API_URL = "https://pzjoc8ic68.execute-api.us-east-2.amazonaws.com/dashboard/monitor";
-const POLL_INTERVAL_MS = 12000;
-
-let map, pathPolyline;
-let vesselMarkers = {};   // vessel_id -> L.marker
-let fleetData = {};       // vessel_id -> dashboard_response
-let selectedVessel = null;
-let voltageChart;
-
-/* =========================================================
-   INIT
-   ========================================================= */
-window.onload = function () {
-    initSidebar();
-    initNav();
-    initMap();
-    initChart();
-    refreshFleet();
-    setInterval(refreshFleet, POLL_INTERVAL_MS);
-};
-
-/* =========================================================
-   SIDEBAR
-   ========================================================= */
-function initSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const btn = document.getElementById('collapseBtn');
-    btn.addEventListener('click', () => {
-        sidebar.classList.toggle('collapsed');
-        setTimeout(() => { if (map) map.invalidateSize(); }, 260);
-    });
-
-    // En móvil arranca colapsado
-    if (window.innerWidth <= 1024) sidebar.classList.add('collapsed');
-}
-
-/* =========================================================
-   NAVEGACIÓN ENTRE VISTAS
-   ========================================================= */
-const VIEW_META = {
-    map:    { title: "Mapa de Flota",      sub: "Posicionamiento satelital en tiempo real · SISESAT Tipo D" },
-    stats:  { title: "Estadísticas",       sub: "Telemetría histórica y métricas de energía" },
-    fleet:  { title: "Embarcaciones",      sub: "Listado general de terminales registrados" },
-    alerts: { title: "Alertas",            sub: "Eventos de seguridad y estado de gabinetes" }
-};
-
-function initNav() {
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-
-            const viewId = item.dataset.view;
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById(`view-${viewId}`).classList.add('active');
-
-            document.getElementById('viewTitle').textContent = VIEW_META[viewId].title;
-            document.getElementById('viewSub').textContent = VIEW_META[viewId].sub;
-
-            if (viewId === 'map' && map) {
-                setTimeout(() => map.invalidateSize(), 100);
-            }
-            if (viewId === 'stats') {
-                updateStatsView();
-            }
-
-            // Cerrar sidebar automáticamente en móvil al navegar
-            if (window.innerWidth <= 1024) {
-                document.getElementById('sidebar').classList.add('collapsed');
-                setTimeout(() => { if (map) map.invalidateSize(); }, 260);
-            }
-        });
-    });
-}
-
-/* =========================================================
-   MAPA (Leaflet) - Vista satelital
-   ========================================================= */
-function initMap() {
-    map = L.map('map', { zoomControl: true }).setView([-12.0464, -77.15], 8);
-
-    // Capa satelital (Esri World Imagery)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        attribution: 'Tiles &copy; Esri'
-    }).addTo(map);
-
-    // Etiquetas de referencia sutiles (carreteras/nombres) en blanco/gris
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        opacity: 0.55
-    }).addTo(map);
-
-    pathPolyline = L.polyline([], {
-        color: '#f5f5f6',
-        weight: 2,
-        opacity: 0.6,
-        dashArray: '4, 7'
-    }).addTo(map);
-}
-
-/* Icono de barco tipo "gota invertida" estilo Google Maps, monocromático */
-function vesselIcon(statusColor) {
-    return L.divIcon({
-        className: 'vessel-pin',
-        html: `
-            <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 0C7.6 0 0 7.6 0 17c0 11 17 27 17 27s17-16 17-27C34 7.6 26.4 0 17 0z"
-                      fill="${statusColor}" stroke="#0a0a0b" stroke-width="1.5"/>
-                <circle cx="17" cy="17" r="6.5" fill="#0a0a0b"/>
-                <path d="M13 17l3-3 3 3-3 3-3-3z" fill="${statusColor}"/>
-            </svg>`,
-        iconSize: [34, 44],
-        iconAnchor: [17, 44],
-        popupAnchor: [0, -40]
-    });
-}
-
-function statusColorFor(vessel) {
-    if (vessel.alert_flags && vessel.alert_flags.panic_button === 1) return '#ff8a8a';
-    if (vessel.alert_flags && vessel.alert_flags.tamper_open === 1) return '#ffd479';
-    return '#f5f5f6';
-}
-
-/* =========================================================
-   FETCH: LISTA DE FLOTA (?list=true)
-   ========================================================= */
-function refreshFleet() {
-    fetch(`${API_URL}?list=true`)
-        .then(res => {
-            if (!res.ok) throw new Error('Error de red al listar flota');
-            return res.json();
-        })
-        .then(data => {
-            const fleet = data.fleet || [];
-            fleet.forEach(v => { fleetData[v.vessel_id] = v; });
-
-            if (!selectedVessel && fleet.length > 0) {
-                selectedVessel = fleet[0].vessel_id;
-            }
-
-            renderFleetOnMap(fleet);
-            renderFleetSidePanel(fleet);
-            renderFleetTable(fleet);
-            renderAlerts(fleet);
-            updateConnStatus(true);
-
-            if (selectedVessel) {
-                fetchVesselDetail(selectedVessel);
-            }
-        })
-        .catch(err => {
-            console.error('Error al listar flota:', err);
-            updateConnStatus(false);
-        });
-}
-
-/* =========================================================
-   FETCH: DETALLE DE UNA EMBARCACIÓN (historial para gráfica/ruta)
-   ========================================================= */
-function fetchVesselDetail(vesselId) {
-    fetch(`${API_URL}?vessel_id=${vesselId}`)
-        .then(res => {
-            if (!res.ok) throw new Error('Error de red en detalle');
-            return res.json();
-        })
-        .then(data => {
-            updateRoute(data);
-            updateStatsCards(data);
-            updateVoltageChart(data);
-        })
-        .catch(err => console.error('Error al obtener detalle:', err));
-}
-
-/* =========================================================
-   RENDER: MARCADORES EN EL MAPA
-   ========================================================= */
-function renderFleetOnMap(fleet) {
-    fleet.forEach(v => {
-        const lat = parseFloat(v.latitude);
-        const lon = parseFloat(v.longitude);
-        if (isNaN(lat) || isNaN(lon)) return;
-
-        const color = statusColorFor(v);
-        const icon = vesselIcon(color);
-
-        if (vesselMarkers[v.vessel_id]) {
-            vesselMarkers[v.vessel_id].setLatLng([lat, lon]);
-            vesselMarkers[v.vessel_id].setIcon(icon);
-        } else {
-            const marker = L.marker([lat, lon], { icon }).addTo(map);
-            marker.on('click', () => {
-                selectedVessel = v.vessel_id;
-                fetchVesselDetail(v.vessel_id);
-                highlightSelectedCard();
-            });
-            vesselMarkers[v.vessel_id] = marker;
-        }
-
-        vesselMarkers[v.vessel_id].setPopupContent(popupHtml(v));
-    });
-
-    // Centrar mapa la primera vez que hay datos
-    if (fleet.length > 0 && !window.__mapCentered) {
-        const lat = parseFloat(fleet[0].latitude);
-        const lon = parseFloat(fleet[0].longitude);
-        if (!isNaN(lat) && !isNaN(lon)) {
-            map.setView([lat, lon], 9);
-            window.__mapCentered = true;
-        }
-    }
-}
-
-function popupHtml(v) {
-    const statusLabel = statusLabelFor(v);
-    return `
-        <div class="popup-vessel">
-            <h4>${v.vessel_id}</h4>
-            <div class="row"><span>Estado</span><b>${statusLabel}</b></div>
-            <div class="row"><span>Velocidad</span><b>${fmtNum(v.speed_knots)} kn</b></div>
-            <div class="row"><span>Rumbo</span><b>${fmtNum(v.course_degrees)}°</b></div>
-            <div class="row"><span>Batería</span><b>${fmtNum(v.battery_voltage, 2)} V</b></div>
-            <div class="row"><span>Última actualización</span><b>${v.last_update || '--'}</b></div>
-        </div>`;
-}
-
-function statusLabelFor(v) {
-    if (v.alert_flags && v.alert_flags.panic_button === 1) return 'PÁNICO';
-    if (v.alert_flags && v.alert_flags.tamper_open === 1) return 'TAMPER';
-    return 'NORMAL';
-}
-
-function badgeClassFor(v) {
-    if (v.alert_flags && v.alert_flags.panic_button === 1) return 'badge-danger';
-    if (v.alert_flags && v.alert_flags.tamper_open === 1) return 'badge-warn';
-    return 'badge-ok';
-}
-
-/* =========================================================
-   RENDER: PANEL LATERAL DEL MAPA (lista de embarcaciones)
-   ========================================================= */
-function renderFleetSidePanel(fleet) {
-    const container = document.getElementById('fleetListMap');
-    container.innerHTML = '';
-
-    if (fleet.length === 0) {
-        container.innerHTML = `<div class="empty-state"><p>No hay embarcaciones registradas todavía.</p></div>`;
-        return;
-    }
-
-    fleet.forEach(v => {
-        const card = document.createElement('div');
-        card.className = 'vessel-card' + (v.vessel_id === selectedVessel ? ' active' : '');
-        card.dataset.vessel = v.vessel_id;
-        card.innerHTML = `
-            <div class="vessel-card-top">
-                <span class="vessel-card-name">${v.vessel_id}</span>
-                <span class="badge ${badgeClassFor(v)}">${statusLabelFor(v)}</span>
-            </div>
-            <div class="vessel-card-meta">
-                <span>VEL <b>${fmtNum(v.speed_knots)}</b> kn</span>
-                <span>BAT <b>${fmtNum(v.battery_voltage, 2)}</b> V</span>
-            </div>
-        `;
-        card.addEventListener('click', () => {
-            selectedVessel = v.vessel_id;
-            fetchVesselDetail(v.vessel_id);
-            highlightSelectedCard();
-
-            const lat = parseFloat(v.latitude);
-            const lon = parseFloat(v.longitude);
-            if (!isNaN(lat) && !isNaN(lon)) {
-                map.panTo([lat, lon]);
-                if (vesselMarkers[v.vessel_id]) vesselMarkers[v.vessel_id].openPopup();
-            }
-        });
-        container.appendChild(card);
-    });
-}
-
-function highlightSelectedCard() {
-    document.querySelectorAll('.vessel-card').forEach(c => {
-        c.classList.toggle('active', c.dataset.vessel === selectedVessel);
-    });
-}
-
-/* =========================================================
-   RENDER: TABLA DE FLOTA
-   ========================================================= */
-function renderFleetTable(fleet) {
-    const tbody = document.getElementById('fleetTableBody');
-    tbody.innerHTML = '';
-
-    if (fleet.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-2); padding:24px;">Sin registros disponibles</td></tr>`;
-        return;
-    }
-
-    fleet.forEach(v => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="mono">${v.vessel_id}</td>
-            <td class="mono">${v.last_update || '--'}</td>
-            <td class="mono">${fmtNum(v.speed_knots)} kn</td>
-            <td class="mono">${fmtNum(v.course_degrees)}°</td>
-            <td class="mono">${fmtNum(v.battery_voltage, 2)} V</td>
-            <td><span class="badge ${badgeClassFor(v)}">${statusLabelFor(v)}</span></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-/* =========================================================
-   RENDER: ALERTAS
-   ========================================================= */
-function renderAlerts(fleet) {
-    const container = document.getElementById('alertsList');
-    container.innerHTML = '';
-
-    const withAlerts = fleet.filter(v =>
-        (v.alert_flags && (v.alert_flags.panic_button === 1 || v.alert_flags.tamper_open === 1))
-    );
-
-    if (withAlerts.length === 0) {
-        container.innerHTML = `
-            <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:12px; background:rgba(159,230,184,0.08); border:1px solid rgba(159,230,184,0.2); color:var(--ok); font-size:13px; font-weight:600;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                Toda la flota opera dentro de los parámetros normales.
-            </div>`;
-        return;
-    }
-
-    withAlerts.forEach(v => {
-        const isPanic = v.alert_flags.panic_button === 1;
-        const color = isPanic ? 'danger' : 'warn';
-        const label = isPanic ? 'Botón de Pánico Activado' : 'Apertura de Gabinete (Tamper)';
-        container.innerHTML += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-radius:12px; background:rgba(255,138,138,0.06); border:1px solid var(--border);">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <span class="badge badge-${color}">${label}</span>
-                    <span class="mono" style="font-size:13px;">${v.vessel_id}</span>
-                </div>
-                <span class="mono" style="font-size:12px; color:var(--text-2);">${v.last_update || '--'}</span>
-            </div>`;
-    });
-}
-
-/* =========================================================
-   RENDER: RUTA / ESTELA EN EL MAPA
-   ========================================================= */
-function updateRoute(data) {
-    const history = data.route_history || [];
-    const coords = history
-        .map(item => [parseFloat(item.latitude), parseFloat(item.longitude)])
-        .filter(([lat, lon]) => !isNaN(lat) && !isNaN(lon));
-
-    pathPolyline.setLatLngs(coords);
-
-    const current = data.current_status || {};
-    document.getElementById('lblLat').textContent = current.latitude !== undefined ? parseFloat(current.latitude).toFixed(5) : '--';
-    document.getElementById('lblLon').textContent = current.longitude !== undefined ? parseFloat(current.longitude).toFixed(5) : '--';
-    document.getElementById('lastUpdatePill').textContent = `${data.vessel_id} · ${current.last_update || '--'}`;
-}
-
-/* =========================================================
-   RENDER: TARJETAS DE ESTADÍSTICAS
-   ========================================================= */
-function updateStatsCards(data) {
-    const current = data.current_status || {};
-    document.getElementById('statSpeed').textContent = fmtNum(current.speed_knots);
-    document.getElementById('statCourse').textContent = fmtNum(current.course_degrees, 0);
-    document.getElementById('statBattery').textContent = fmtNum(current.battery_voltage, 2);
-    document.getElementById('statStatus').textContent = statusLabelFor({
-        alert_flags: current.alert_flags || {}
-    });
-    document.getElementById('statsVesselLabel').textContent =
-        `${data.vessel_id} · Última actualización: ${current.last_update || '--'}`;
-}
-
-function updateStatsView() {
-    if (selectedVessel) fetchVesselDetail(selectedVessel);
-}
-
-/* =========================================================
-   GRÁFICA DE VOLTAJE (Chart.js)
-   ========================================================= */
-function initChart() {
-    const ctx = document.getElementById('chartVoltage').getContext('2d');
-    voltageChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Voltaje de respaldo (V)',
-                data: [],
-                borderColor: '#f5f5f6',
-                backgroundColor: 'rgba(245,245,246,0.06)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.35,
-                pointRadius: 3,
-                pointBackgroundColor: '#f5f5f6',
-                pointBorderColor: '#0a0a0b'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: {
-                    grid: { color: '#2e2e33' },
-                    ticks: { color: '#a1a1a8', font: { family: 'JetBrains Mono', size: 11 } }
-                },
-                x: {
-                    grid: { color: '#2e2e33' },
-                    ticks: { color: '#a1a1a8', font: { family: 'JetBrains Mono', size: 10 } }
+                        `;
+                    });
                 }
+
+                const cardHtml = `
+                    <div class="bg-[#171b2f] border border-[#232a45] rounded-xl overflow-hidden transition-all">
+                        <div onclick="toggleAccordion('${id}')" class="p-4 flex flex-wrap justify-between items-center cursor-pointer hover:bg-[#1e233d] transition-colors gap-3">
+                            <div class="flex items-center space-x-3">
+                                <i class="ph-bold ph-caret-down text-gray-400 text-sm transition-transform duration-300" id="arrow-${id}"></i>
+                                <span class="font-bold text-white text-sm tracking-wide font-mono">${id}</span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <span class="text-xs text-gray-400 font-mono hidden sm:inline">Último Reporte: ${last.timestamp || last.date_time || 'N/A'}</span>
+                                ${badge}
+                            </div>
+                        </div>
+                        
+                        <div id="content-${id}" class="hidden border-t border-[#232a45] bg-[#0c0e18] max-h-60 overflow-y-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-[#111422] text-[11px] uppercase text-gray-400 tracking-wider sticky top-0 border-b border-[#232a45]">
+                                    <tr>
+                                        <th class="p-3.5">Timestamp</th>
+                                        <th class="p-3.5">Latitud</th>
+                                        <th class="p-3.5">Longitud</th>
+                                        <th class="p-3.5">Velocidad</th>
+                                        <th class="p-3.5">Voltaje Bat.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tableRowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        // CONTROLADOR FLUIDO DE ACORDEÓN DESPLEGABLE
+        function toggleAccordion(id) {
+            const content = document.getElementById(`content-${id}`);
+            const arrow = document.getElementById(`arrow-${id}`);
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+                // Al expandir, seteamos este barco como el foco de análisis del mapa y estadísticas
+                currentVesselId = id;
+                if(cacheFleetData[id]) processMapAndStats(cacheFleetData[id]);
+            } else {
+                content.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
             }
         }
-    });
-}
 
-function updateVoltageChart(data) {
-    const history = [...(data.route_history || [])].reverse();
-    const labels = history.map(item => {
-        const ts = item.timestamp || item.date_time || '';
-        return ts.split(' ')[1] || ts;
-    });
-    const values = history.map(item => parseFloat(item.battery_voltage));
+        // 5. INICIALIZAR GRÁFICA DE VOLTAJE (CHART.JS)
+        function initCharts() {
+            const ctxVolt = document.getElementById('chart-voltage').getContext('2d');
+            voltageChart = new Chart(ctxVolt, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: '#00d2ff',
+                        backgroundColor: 'rgba(0, 210, 255, 0.04)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.25,
+                        pointBackgroundColor: '#00d2ff',
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: '#1c223a' }, ticks: { color: '#8ea0c5', font: { family: 'JetBrains Mono', size: 10 } } },
+                        x: { grid: { color: '#1c223a' }, ticks: { color: '#8ea0c5', font: { family: 'JetBrains Mono', size: 9 } } }
+                    }
+                }
+            });
+        }
 
-    voltageChart.data.labels = labels;
-    voltageChart.data.datasets[0].data = values;
-    voltageChart.update();
-}
+        // MANEJO DE ENRUTAMIENTO POR PESTAÑAS (TABS ROUTING)
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
 
-/* =========================================================
-   UTILIDADES
-   ========================================================= */
-function fmtNum(val, decimals = 1) {
-    if (val === undefined || val === null || isNaN(parseFloat(val))) return '--';
-    return parseFloat(val).toFixed(decimals);
-}
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-200 transition-all flex items-center gap-2";
+            });
 
-function updateConnStatus(ok) {
-    const dot = document.getElementById('connDot');
-    const text = document.getElementById('connText');
-    if (ok) {
-        dot.style.background = '#9fe6b8';
-        dot.style.boxShadow = '0 0 8px #9fe6b8';
-        text.textContent = 'AWS API · Conectado';
-    } else {
-        dot.style.background = '#ff8a8a';
-        dot.style.boxShadow = '0 0 8px #ff8a8a';
-        text.textContent = 'AWS API · Sin conexión';
-    }
-}
-</script>
+            const currentBtn = document.getElementById(`btn-${tabId}`);
+            currentBtn.className = "tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-blue-600 text-white shadow-md";
+
+            // Forzar a Leaflet a recalcular sus dimensiones si se vuelve a la pestaña del mapa
+            if (tabId === 'mapa' && map) {
+                setTimeout(() => { map.invalidateSize(); }, 200);
+            }
+        }
+
+        function updateConnStatus(ok) {
+            const dot = document.getElementById('connDot');
+            const text = document.getElementById('connText');
+            if (ok) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]";
+                text.textContent = 'AWS Link Activo';
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]";
+                text.textContent = 'AWS Fuera de Línea';
+            }
+        }
+    </script>
 </body>
 </html>
