@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISESAT · Centro de Control de Flota</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root{
+            --bg-0:#0a0a0b;
+            --bg-1:#121214;
+            --bg-2:#1a1a1d;
+            --bg-3:#232327;
+            --border:#2e2e33;
+            --text-0:#f5f5f6;
+            --text-1:#a1a1a8;
+            --text-2:#6b6b72;
+            --accent:#ffffff;
+            --ok:#9fe6b8;
+            --warn:#ffd479;
+            --danger:#ff8a8a;
+            --sidebar-w:248px;
+            --sidebar-w-collapsed:76px;
+        }
+
+        *{ box-sizing:border-box; margin:0; padding:0; }
+
+        html,body{
+            height:100%;
+            font-family:'Inter',sans-serif;
+            background:var(--bg-0);
+            color:var(--text-0);
+            overflow:hidden;
+        }
+
+        ::-webkit-scrollbar{ width:6px; height:6px; }
+        ::-webkit-scrollbar-track{ background:transparent; }
+        ::-webkit-scrollbar-thumb{ background:var(--bg-3); border-radius:4px; }
+
+        /* ============ LAYOUT ============ */
+        .app{
+            display:flex;
+            height:100vh;
+            width:100vw;
+        }
+
+        /* ============ SIDEBAR ============ */
+        .sidebar{
+            width:var(--sidebar-w);
+            min-width:var(--sidebar-w);
+            background:var(--bg-1);
+            border-right:1px solid var(--border);
+            display:flex;
+            flex-direction:column;
+            transition:width .25s ease, min-width .25s ease;
+            z-index:50;
+        }
+        .sidebar.collapsed{
+            width:var(--sidebar-w-collapsed);
+            min-width:var(--sidebar-w-collapsed);
+        }
+
+        .sidebar-header{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:20px 18px;
+            border-bottom:1px solid var(--border);
+            min-height:64px;
+        }
+
+        .brand{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            overflow:hidden;
+        }
+
+        .brand svg{ flex-shrink:0; }
+
+        .brand-text{
+            display:flex;
+            flex-direction:column;
+            line-height:1.1;
+            white-space:nowrap;
+            opacity:1;
+            transition:opacity .15s ease;
+        }
+        .sidebar.collapsed .brand-text{ opacity:0; width:0; }
+
+        .brand-text strong{
+            font-size:16px;
+            font-weight:800;
+            letter-spacing:0.5px;
+        }
+        .brand-text span{
+            font-size:10px;
+            color:var(--text-2);
+            font-family:'JetBrains Mono',monospace;
+            letter-spacing:1px;
+        }
+
+        .collapse-btn{
+            background:var(--bg-2);
+            border:1px solid var(--border);
+            border-radius:8px;
+            width:30px;
+            height:30px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            cursor:pointer;
+            color:var(--text-1);
+            flex-shrink:0;
+            transition:all .15s ease;
+        }
+        .collapse-btn:hover{ background:var(--bg-3); color:var(--text-0); }
+        .sidebar.collapsed .collapse-btn{ transform:rotate(180deg); }
+
+        .nav{
+            flex:1;
+            padding:14px 12px;
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+            overflow-y:auto;
+        }
+
+        .nav-item{
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:11px 12px;
+            border-radius:10px;
+            color:var(--text-1);
+            cursor:pointer;
+            white-space:nowrap;
+            overflow:hidden;
+            transition:all .15s ease;
+            font-size:14px;
+            font-weight:500;
+        }
+        .nav-item svg{ flex-shrink:0; width:20px; height:20px; }
+        .nav-item span{
+            opacity:1;
+            transition:opacity .15s ease;
+        }
+        .sidebar.collapsed .nav-item span{ opacity:0; width:0; }
+        .sidebar.collapsed .nav-item{ justify-content:center; padding:11px; }
+
+        .nav-item:hover{
+            background:var(--bg-2);
+            color:var(--text-0);
+        }
+        .nav-item.active{
+            background:var(--bg-3);
+            color:var(--text-0);
+            box-shadow: inset 0 0 0 1px var(--border);
+        }
+        .nav-item.active svg{ stroke:var(--text-0); }
+
+        .sidebar-footer{
+            padding:16px;
+            border-top:1px solid var(--border);
+            display:flex;
+            align-items:center;
+            gap:10px;
+            overflow:hidden;
+        }
+        .status-dot{
+            width:8px; height:8px; border-radius:50%;
+            background:var(--ok);
+            flex-shrink:0;
+            box-shadow:0 0 8px var(--ok);
+            animation:pulse 2s infinite;
+        }
+        @keyframes pulse{
+            0%,100%{ opacity:1; }
+            50%{ opacity:.4; }
+        }
+        .sidebar-footer-text{
+            font-size:11px;
+            color:var(--text-2);
+            font-family:'JetBrains Mono',monospace;
+            white-space:nowrap;
+            overflow:hidden;
+            transition:opacity .15s ease;
+        }
+        .sidebar.collapsed .sidebar-footer-text{ opacity:0; width:0; }
+
+        /* ============ MAIN AREA ============ */
+        .main{
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            height:100vh;
+            overflow:hidden;
+            background:var(--bg-0);
+        }
+
+        .topbar{
+            height:64px;
+            min-height:64px;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:0 24px;
+            border-bottom:1px solid var(--border);
+            background:var(--bg-1);
+        }
+        .topbar h1{
+            font-size:17px;
+            font-weight:700;
+        }
+        .topbar-sub{
+            font-size:12px;
+            color:var(--text-2);
+            font-family:'JetBrains Mono',monospace;
+            margin-top:2px;
+        }
+        .topbar-right{
+            display:flex;
+            align-items:center;
+            gap:16px;
+        }
+        .vessel-pill{
+            display:flex;
+            align-items:center;
+            gap:8px;
+            background:var(--bg-2);
+            border:1px solid var(--border);
+            padding:7px 14px;
+            border-radius:999px;
+            font-size:12px;
+            font-family:'JetBrains Mono',monospace;
+            color:var(--text-1);
+        }
+
+        .view{
+            flex:1;
+            overflow:hidden;
+            display:none;
+            position:relative;
+        }
+        .view.active{ display:flex; flex-direction:column; }
+
+        /* ============ MAP VIEW ============ */
+        #view-map{ flex-direction:row; }
+        #map{
+            flex:1;
+            height:100%;
+            background:var(--bg-1);
+            filter: saturate(0.05) contrast(1.05) brightness(0.95);
+        }
+
+        .map-fleet-panel{
+            width:300px;
+            background:var(--bg-1);
+            border-left:1px solid var(--border);
+            display:flex;
+            flex-direction:column;
+            padding:18px;
+            overflow-y:auto;
+        }
+        .map-fleet-panel h3{
+            font-size:12px;
+            text-transform:uppercase;
+            letter-spacing:1.2px;
+            color:var(--text-2);
+            font-weight:700;
+            margin-bottom:12px;
+        }
+        .vessel-card{
+            background:var(--bg-2);
+            border:1px solid var(--border);
+            border-radius:12px;
+            padding:12px 14px;
+            margin-bottom:8px;
+            cursor:pointer;
+            transition:all .15s ease;
+        }
+        .vessel-card:hover{ border-color:var(--text-2); }
+        .vessel-card.active{
+            border-color:var(--text-0);
+            background:var(--bg-3);
+        }
+        .vessel-card-top{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:8px;
+        }
+        .vessel-card-name{
+            font-weight:700;
+            font-size:13px;
+            font-family:'JetBrains Mono',monospace;
+            letter-spacing:0.3px;
+        }
+        .badge{
+            font-size:9px;
+            font-weight:700;
+            padding:3px 8px;
+            border-radius:999px;
+            font-family:'JetBrains Mono',monospace;
+            letter-spacing:0.5px;
+            white-space:nowrap;
+        }
+        .badge-ok{ background:rgba(159,230,184,0.12); color:var(--ok); border:1px solid rgba(159,230,184,0.25); }
+        .badge-warn{ background:rgba(255,212,121,0.12); color:var(--warn); border:1px solid rgba(255,212,121,0.25); }
+        .badge-danger{ background:rgba(255,138,138,0.12); color:var(--danger); border:1px solid rgba(255,138,138,0.25); }
+        .badge-neutral{ background:var(--bg-3); color:var(--text-2); border:1px solid var(--border); }
+
+        .vessel-card-meta{
+            display:flex;
+            gap:14px;
+            margin-top:8px;
+            font-size:11px;
+            color:var(--text-1);
+            font-family:'JetBrains Mono',monospace;
+        }
+        .vessel-card-meta b{ color:var(--text-0); }
+
+        .map-coords-overlay{
+            position:absolute;
+            bottom:18px;
+            left:18px;
+            background:rgba(18,18,20,0.85);
+            border:1px solid var(--border);
+            border-radius:10px;
+            padding:8px 14px;
+            font-size:11px;
+            font-family:'JetBrains Mono',monospace;
+            color:var(--text-1);
+            backdrop-filter:blur(6px);
+            z-index:400;
+        }
+
+        /* ============ STATS VIEW ============ */
+        #view-stats{ padding:24px; overflow-y:auto; gap:18px; }
+
+        .stats-grid{
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            gap:14px;
+            margin-bottom:18px;
+        }
+        .stat-card{
+            background:var(--bg-1);
+            border:1px solid var(--border);
+            border-radius:14px;
+            padding:16px 18px;
+        }
+        .stat-card .label{
+            font-size:11px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            color:var(--text-2);
+            font-weight:600;
+            margin-bottom:8px;
+        }
+        .stat-card .value{
+            font-size:26px;
+            font-weight:800;
+            font-family:'JetBrains Mono',monospace;
+            display:flex;
+            align-items:baseline;
+            gap:6px;
+        }
+        .stat-card .value .unit{
+            font-size:13px;
+            color:var(--text-2);
+            font-weight:500;
+        }
+
+        .panel{
+            background:var(--bg-1);
+            border:1px solid var(--border);
+            border-radius:16px;
+            padding:20px;
+        }
+        .panel h3{
+            font-size:15px;
+            font-weight:700;
+            margin-bottom:4px;
+        }
+        .panel .sub{
+            font-size:12px;
+            color:var(--text-2);
+            margin-bottom:14px;
+            font-family:'JetBrains Mono',monospace;
+        }
+        .chart-box{ height:320px; }
+
+        .fleet-table-wrap{ margin-top:18px; }
+        table{ width:100%; border-collapse:collapse; font-size:13px; }
+        th{
+            text-align:left;
+            font-size:11px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            color:var(--text-2);
+            font-weight:600;
+            padding:10px 14px;
+            border-bottom:1px solid var(--border);
+        }
+        td{
+            padding:12px 14px;
+            border-bottom:1px solid var(--border);
+            color:var(--text-1);
+        }
+        td.mono{ font-family:'JetBrains Mono',monospace; color:var(--text-0); }
+        tr:last-child td{ border-bottom:none; }
+        tr:hover td{ background:var(--bg-2); }
+
+        /* ============ EMPTY / LOADING ============ */
+        .empty-state{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            height:100%;
+            color:var(--text-2);
+            gap:10px;
+            text-align:center;
+            padding:40px;
+        }
+        .empty-state svg{ opacity:0.3; }
+        .empty-state p{ font-size:13px; max-width:320px; }
+
+        /* Leaflet popup theming */
+        .leaflet-popup-content-wrapper{
+            background:var(--bg-1);
+            color:var(--text-0);
+            border-radius:12px;
+            border:1px solid var(--border);
+        }
+        .leaflet-popup-tip{ background:var(--bg-1); border:1px solid var(--border); }
+        .leaflet-popup-content{ margin:12px 14px; }
+        .leaflet-container a.leaflet-popup-close-button{ color:var(--text-2); }
+
+        .popup-vessel{ font-family:'Inter',sans-serif; }
+        .popup-vessel h4{
+            font-size:13px;
+            font-weight:700;
+            font-family:'JetBrains Mono',monospace;
+            margin-bottom:6px;
+            padding-bottom:6px;
+            border-bottom:1px solid var(--border);
+        }
+        .popup-vessel .row{
+            display:flex;
+            justify-content:space-between;
+            font-size:12px;
+            color:var(--text-1);
+            padding:2px 0;
+        }
+        .popup-vessel .row b{ color:var(--text-0); font-family:'JetBrains Mono',monospace; }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width:1024px){
+            .sidebar{ position:fixed; height:100vh; }
+            .sidebar:not(.collapsed){
+                width:240px;
+                box-shadow:0 0 40px rgba(0,0,0,0.5);
+            }
+            .sidebar.collapsed{ width:0; min-width:0; border:none; }
+            .main{ width:100%; }
+            .map-fleet-panel{ width:240px; }
+            .stats-grid{ grid-template-columns:repeat(2,1fr); }
+        }
+        @media (max-width:640px){
+            #view-map{ flex-direction:column; }
+            .map-fleet-panel{
+                width:100%;
+                height:180px;
+                border-left:none;
+                border-top:1px solid var(--border);
+                flex-direction:row;
+                gap:8px;
+            }
+            .map-fleet-panel h3{ display:none; }
+            .vessel-card{ min-width:200px; margin-right:8px; }
+            .stats-grid{ grid-template-columns:repeat(2,1fr); }
+            .topbar-sub{ display:none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <!-- Narval icon -->
+                <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M58 30c-4-6-12-10-20-10-3 0-6 .5-8.5 1.5L8 18l6 11-6 11 21.5-3.5C32 38.5 35 39 38 39c8 0 16-4 20-10z" fill="#f5f5f6"/>
+                    <path d="M58 30L62 24" stroke="#f5f5f6" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="40" cy="27" r="2" fill="#0a0a0b"/>
+                    <path d="M16 24l-5-3M16 36l-5 3" stroke="#f5f5f6" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <div class="brand-text">
+                    <strong>SISESAT</strong>
+                    <span>TYPE D · NARVAL</span>
+                </div>
+            </div>
+            <div class="collapse-btn" id="collapseBtn" title="Plegar menú">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <div class="nav-item active" data-view="map">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                <span>Mapa de Flota</span>
+            </div>
+            <div class="nav-item" data-view="stats">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>Estadísticas</span>
+            </div>
+            <div class="nav-item" data-view="fleet">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                <span>Embarcaciones</span>
+            </div>
+            <div class="nav-item" data-view="alerts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Alertas</span>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="status-dot" id="connDot"></div>
+            <div class="sidebar-footer-text" id="connText">AWS API · Conectado</div>
+        </div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <div class="main">
+        <div class="topbar">
+            <div>
+                <h1 id="viewTitle">Mapa de Flota</h1>
+                <div class="topbar-sub" id="viewSub">Posicionamiento satelital en tiempo real · SISESAT Tipo D</div>
+            </div>
+            <div class="topbar-right">
+                <div class="vessel-pill">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span id="lastUpdatePill">Sin datos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== VISTA: MAPA ===== -->
+        <div class="view active" id="view-map">
+            <div id="map"></div>
+            <div class="map-coords-overlay">
+                LAT <span id="lblLat">--</span> &nbsp;·&nbsp; LON <span id="lblLon">--</span>
+            </div>
+            <div class="map-fleet-panel">
+                <h3>Embarcaciones</h3>
+                <div id="fleetListMap"></div>
+            </div>
+        </div>
+
+        <!-- ===== VISTA: ESTADÍSTICAS ===== -->
+        <div class="view" id="view-stats">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Velocidad</div>
+                    <div class="value"><span id="statSpeed">0.0</span><span class="unit">nudos</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Rumbo</div>
+                    <div class="value"><span id="statCourse">0</span><span class="unit">grados</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Batería</div>
+                    <div class="value"><span id="statBattery">0.00</span><span class="unit">V</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Estado</div>
+                    <div class="value" style="font-size:16px;" id="statStatus">—</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Curva de Voltaje de Batería de Respaldo</h3>
+                <div class="sub" id="statsVesselLabel">Selecciona una embarcación</div>
+                <div class="chart-box"><canvas id="chartVoltage"></canvas></div>
+            </div>
+        </div>
+
+        <!-- ===== VISTA: EMBARCACIONES ===== -->
+        <div class="view" id="view-fleet" style="overflow-y:auto; padding:24px;">
+            <div class="panel">
+                <h3>Flota Registrada</h3>
+                <div class="sub">Listado de terminales SISESAT Tipo D activos y su última telemetría reportada</div>
+                <div class="fleet-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Vessel ID</th>
+                                <th>Última actualización</th>
+                                <th>Velocidad</th>
+                                <th>Rumbo</th>
+                                <th>Batería</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fleetTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== VISTA: ALERTAS ===== -->
+        <div class="view" id="view-alerts" style="overflow-y:auto; padding:24px;">
+            <div class="panel">
+                <h3>Estado de Seguridad de la Flota</h3>
+                <div class="sub">Evaluación según comandos de alerta del protocolo SISESAT (botón de pánico / tamper de gabinete)</div>
+                <div id="alertsList" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
+const API_URL = "https://pzjoc8ic68.execute-api.us-east-2.amazonaws.com/dashboard/monitor";
+const POLL_INTERVAL_MS = 12000;
+
+let map, pathPolyline;
+let vesselMarkers = {};   // vessel_id -> L.marker
+let fleetData = {};       // vessel_id -> dashboard_response
+let selectedVessel = null;
+let voltageChart;
+
+/* =========================================================
+   INIT
+   ========================================================= */
+window.onload = function () {
+    initSidebar();
+    initNav();
+    initMap();
+    initChart();
+    refreshFleet();
+    setInterval(refreshFleet, POLL_INTERVAL_MS);
+};
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const btn = document.getElementById('collapseBtn');
+    btn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        setTimeout(() => { if (map) map.invalidateSize(); }, 260);
+    });
+
+    // En móvil arranca colapsado
+    if (window.innerWidth <= 1024) sidebar.classList.add('collapsed');
+}
+
+/* =========================================================
+   NAVEGACIÓN ENTRE VISTAS
+   ========================================================= */
+const VIEW_META = {
+    map:    { title: "Mapa de Flota",      sub: "Posicionamiento satelital en tiempo real · SISESAT Tipo D" },
+    stats:  { title: "Estadísticas",       sub: "Telemetría histórica y métricas de energía" },
+    fleet:  { title: "Embarcaciones",      sub: "Listado general de terminales registrados" },
+    alerts: { title: "Alertas",            sub: "Eventos de seguridad y estado de gabinetes" }
+};
+
+function initNav() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+
+            const viewId = item.dataset.view;
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewId}`).classList.add('active');
+
+            document.getElementById('viewTitle').textContent = VIEW_META[viewId].title;
+            document.getElementById('viewSub').textContent = VIEW_META[viewId].sub;
+
+            if (viewId === 'map' && map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+            if (viewId === 'stats') {
+                updateStatsView();
+            }
+
+            // Cerrar sidebar automáticamente en móvil al navegar
+            if (window.innerWidth <= 1024) {
+                document.getElementById('sidebar').classList.add('collapsed');
+                setTimeout(() => { if (map) map.invalidateSize(); }, 260);
+            }
+        });
+    });
+}
+
+/* =========================================================
+   MAPA (Leaflet) - Vista satelital
+   ========================================================= */
+function initMap() {
+    map = L.map('map', { zoomControl: true }).setView([-12.0464, -77.15], 8);
+
+    // Capa satelital (Esri World Imagery)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+    }).addTo(map);
+
+    // Etiquetas de referencia sutiles (carreteras/nombres) en blanco/gris
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        opacity: 0.55
+    }).addTo(map);
+
+    pathPolyline = L.polyline([], {
+        color: '#f5f5f6',
+        weight: 2,
+        opacity: 0.6,
+        dashArray: '4, 7'
+    }).addTo(map);
+}
+
+/* Icono de barco tipo "gota invertida" estilo Google Maps, monocromático */
+function vesselIcon(statusColor) {
+    return L.divIcon({
+        className: 'vessel-pin',
+        html: `
+            <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 0C7.6 0 0 7.6 0 17c0 11 17 27 17 27s17-16 17-27C34 7.6 26.4 0 17 0z"
+                      fill="${statusColor}" stroke="#0a0a0b" stroke-width="1.5"/>
+                <circle cx="17" cy="17" r="6.5" fill="#0a0a0b"/>
+                <path d="M13 17l3-3 3 3-3 3-3-3z" fill="${statusColor}"/>
+            </svg>`,
+        iconSize: [34, 44],
+        iconAnchor: [17, 44],
+        popupAnchor: [0, -40]
+    });
+}
+
+function statusColorFor(vessel) {
+    if (vessel.alert_flags && vessel.alert_flags.panic_button === 1) return '#ff8a8a';
+    if (vessel.alert_flags && vessel.alert_flags.tamper_open === 1) return '#ffd479';
+    return '#f5f5f6';
+}
+
+/* =========================================================
+   FETCH: LISTA DE FLOTA (?list=true)
+   ========================================================= */
+function refreshFleet() {
+    fetch(`${API_URL}?list=true`)
+        .then(res => {
+            if (!res.ok) throw new Error('Error de red al listar flota');
+            return res.json();
+        })
+        .then(data => {
+            const fleet = data.fleet || [];
+            fleet.forEach(v => { fleetData[v.vessel_id] = v; });
+
+            if (!selectedVessel && fleet.length > 0) {
+                selectedVessel = fleet[0].vessel_id;
+            }
+
+            renderFleetOnMap(fleet);
+            renderFleetSidePanel(fleet);
+            renderFleetTable(fleet);
+            renderAlerts(fleet);
+            updateConnStatus(true);
+
+            if (selectedVessel) {
+                fetchVesselDetail(selectedVessel);
+            }
+        })
+        .catch(err => {
+            console.error('Error al listar flota:', err);
+            updateConnStatus(false);
+        });
+}
+
+/* =========================================================
+   FETCH: DETALLE DE UNA EMBARCACIÓN (historial para gráfica/ruta)
+   ========================================================= */
+function fetchVesselDetail(vesselId) {
+    fetch(`${API_URL}?vessel_id=${vesselId}`)
+        .then(res => {
+            if (!res.ok) throw new Error('Error de red en detalle');
+            return res.json();
+        })
+        .then(data => {
+            updateRoute(data);
+            updateStatsCards(data);
+            updateVoltageChart(data);
+        })
+        .catch(err => console.error('Error al obtener detalle:', err));
+}
+
+/* =========================================================
+   RENDER: MARCADORES EN EL MAPA
+   ========================================================= */
+function renderFleetOnMap(fleet) {
+    fleet.forEach(v => {
+        const lat = parseFloat(v.latitude);
+        const lon = parseFloat(v.longitude);
+        if (isNaN(lat) || isNaN(lon)) return;
+
+        const color = statusColorFor(v);
+        const icon = vesselIcon(color);
+
+        if (vesselMarkers[v.vessel_id]) {
+            vesselMarkers[v.vessel_id].setLatLng([lat, lon]);
+            vesselMarkers[v.vessel_id].setIcon(icon);
+        } else {
+            const marker = L.marker([lat, lon], { icon }).addTo(map);
+            marker.on('click', () => {
+                selectedVessel = v.vessel_id;
+                fetchVesselDetail(v.vessel_id);
+                highlightSelectedCard();
+            });
+            vesselMarkers[v.vessel_id] = marker;
+        }
+
+        vesselMarkers[v.vessel_id].setPopupContent(popupHtml(v));
+    });
+
+    // Centrar mapa la primera vez que hay datos
+    if (fleet.length > 0 && !window.__mapCentered) {
+        const lat = parseFloat(fleet[0].latitude);
+        const lon = parseFloat(fleet[0].longitude);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            map.setView([lat, lon], 9);
+            window.__mapCentered = true;
+        }
+    }
+}
+
+function popupHtml(v) {
+    const statusLabel = statusLabelFor(v);
+    return `
+        <div class="popup-vessel">
+            <h4>${v.vessel_id}</h4>
+            <div class="row"><span>Estado</span><b>${statusLabel}</b></div>
+            <div class="row"><span>Velocidad</span><b>${fmtNum(v.speed_knots)} kn</b></div>
+            <div class="row"><span>Rumbo</span><b>${fmtNum(v.course_degrees)}°</b></div>
+            <div class="row"><span>Batería</span><b>${fmtNum(v.battery_voltage, 2)} V</b></div>
+            <div class="row"><span>Última actualización</span><b>${v.last_update || '--'}</b></div>
+        </div>`;
+}
+
+function statusLabelFor(v) {
+    if (v.alert_flags && v.alert_flags.panic_button === 1) return 'PÁNICO';
+    if (v.alert_flags && v.alert_flags.tamper_open === 1) return 'TAMPER';
+    return 'NORMAL';
+}
+
+function badgeClassFor(v) {
+    if (v.alert_flags && v.alert_flags.panic_button === 1) return 'badge-danger';
+    if (v.alert_flags && v.alert_flags.tamper_open === 1) return 'badge-warn';
+    return 'badge-ok';
+}
+
+/* =========================================================
+   RENDER: PANEL LATERAL DEL MAPA (lista de embarcaciones)
+   ========================================================= */
+function renderFleetSidePanel(fleet) {
+    const container = document.getElementById('fleetListMap');
+    container.innerHTML = '';
+
+    if (fleet.length === 0) {
+        container.innerHTML = `<div class="empty-state"><p>No hay embarcaciones registradas todavía.</p></div>`;
+        return;
+    }
+
+    fleet.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'vessel-card' + (v.vessel_id === selectedVessel ? ' active' : '');
+        card.dataset.vessel = v.vessel_id;
+        card.innerHTML = `
+            <div class="vessel-card-top">
+                <span class="vessel-card-name">${v.vessel_id}</span>
+                <span class="badge ${badgeClassFor(v)}">${statusLabelFor(v)}</span>
+            </div>
+            <div class="vessel-card-meta">
+                <span>VEL <b>${fmtNum(v.speed_knots)}</b> kn</span>
+                <span>BAT <b>${fmtNum(v.battery_voltage, 2)}</b> V</span>
+            </div>
+        `;
+        card.addEventListener('click', () => {
+            selectedVessel = v.vessel_id;
+            fetchVesselDetail(v.vessel_id);
+            highlightSelectedCard();
+
+            const lat = parseFloat(v.latitude);
+            const lon = parseFloat(v.longitude);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                map.panTo([lat, lon]);
+                if (vesselMarkers[v.vessel_id]) vesselMarkers[v.vessel_id].openPopup();
+            }
+        });
+        container.appendChild(card);
+    });
+}
+
+function highlightSelectedCard() {
+    document.querySelectorAll('.vessel-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.vessel === selectedVessel);
+    });
+}
+
+/* =========================================================
+   RENDER: TABLA DE FLOTA
+   ========================================================= */
+function renderFleetTable(fleet) {
+    const tbody = document.getElementById('fleetTableBody');
+    tbody.innerHTML = '';
+
+    if (fleet.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-2); padding:24px;">Sin registros disponibles</td></tr>`;
+        return;
+    }
+
+    fleet.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="mono">${v.vessel_id}</td>
+            <td class="mono">${v.last_update || '--'}</td>
+            <td class="mono">${fmtNum(v.speed_knots)} kn</td>
+            <td class="mono">${fmtNum(v.course_degrees)}°</td>
+            <td class="mono">${fmtNum(v.battery_voltage, 2)} V</td>
+            <td><span class="badge ${badgeClassFor(v)}">${statusLabelFor(v)}</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/* =========================================================
+   RENDER: ALERTAS
+   ========================================================= */
+function renderAlerts(fleet) {
+    const container = document.getElementById('alertsList');
+    container.innerHTML = '';
+
+    const withAlerts = fleet.filter(v =>
+        (v.alert_flags && (v.alert_flags.panic_button === 1 || v.alert_flags.tamper_open === 1))
+    );
+
+    if (withAlerts.length === 0) {
+        container.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:12px; background:rgba(159,230,184,0.08); border:1px solid rgba(159,230,184,0.2); color:var(--ok); font-size:13px; font-weight:600;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Toda la flota opera dentro de los parámetros normales.
+            </div>`;
+        return;
+    }
+
+    withAlerts.forEach(v => {
+        const isPanic = v.alert_flags.panic_button === 1;
+        const color = isPanic ? 'danger' : 'warn';
+        const label = isPanic ? 'Botón de Pánico Activado' : 'Apertura de Gabinete (Tamper)';
+        container.innerHTML += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-radius:12px; background:rgba(255,138,138,0.06); border:1px solid var(--border);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span class="badge badge-${color}">${label}</span>
+                    <span class="mono" style="font-size:13px;">${v.vessel_id}</span>
+                </div>
+                <span class="mono" style="font-size:12px; color:var(--text-2);">${v.last_update || '--'}</span>
+            </div>`;
+    });
+}
+
+/* =========================================================
+   RENDER: RUTA / ESTELA EN EL MAPA
+   ========================================================= */
+function updateRoute(data) {
+    const history = data.route_history || [];
+    const coords = history
+        .map(item => [parseFloat(item.latitude), parseFloat(item.longitude)])
+        .filter(([lat, lon]) => !isNaN(lat) && !isNaN(lon));
+
+    pathPolyline.setLatLngs(coords);
+
+    const current = data.current_status || {};
+    document.getElementById('lblLat').textContent = current.latitude !== undefined ? parseFloat(current.latitude).toFixed(5) : '--';
+    document.getElementById('lblLon').textContent = current.longitude !== undefined ? parseFloat(current.longitude).toFixed(5) : '--';
+    document.getElementById('lastUpdatePill').textContent = `${data.vessel_id} · ${current.last_update || '--'}`;
+}
+
+/* =========================================================
+   RENDER: TARJETAS DE ESTADÍSTICAS
+   ========================================================= */
+function updateStatsCards(data) {
+    const current = data.current_status || {};
+    document.getElementById('statSpeed').textContent = fmtNum(current.speed_knots);
+    document.getElementById('statCourse').textContent = fmtNum(current.course_degrees, 0);
+    document.getElementById('statBattery').textContent = fmtNum(current.battery_voltage, 2);
+    document.getElementById('statStatus').textContent = statusLabelFor({
+        alert_flags: current.alert_flags || {}
+    });
+    document.getElementById('statsVesselLabel').textContent =
+        `${data.vessel_id} · Última actualización: ${current.last_update || '--'}`;
+}
+
+function updateStatsView() {
+    if (selectedVessel) fetchVesselDetail(selectedVessel);
+}
+
+/* =========================================================
+   GRÁFICA DE VOLTAJE (Chart.js)
+   ========================================================= */
+function initChart() {
+    const ctx = document.getElementById('chartVoltage').getContext('2d');
+    voltageChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Voltaje de respaldo (V)',
+                data: [],
+                borderColor: '#f5f5f6',
+                backgroundColor: 'rgba(245,245,246,0.06)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3,
+                pointBackgroundColor: '#f5f5f6',
+                pointBorderColor: '#0a0a0b'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    grid: { color: '#2e2e33' },
+                    ticks: { color: '#a1a1a8', font: { family: 'JetBrains Mono', size: 11 } }
+                },
+                x: {
+                    grid: { color: '#2e2e33' },
+                    ticks: { color: '#a1a1a8', font: { family: 'JetBrains Mono', size: 10 } }
+                }
+            }
+        }
+    });
+}
+
+function updateVoltageChart(data) {
+    const history = [...(data.route_history || [])].reverse();
+    const labels = history.map(item => {
+        const ts = item.timestamp || item.date_time || '';
+        return ts.split(' ')[1] || ts;
+    });
+    const values = history.map(item => parseFloat(item.battery_voltage));
+
+    voltageChart.data.labels = labels;
+    voltageChart.data.datasets[0].data = values;
+    voltageChart.update();
+}
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+function fmtNum(val, decimals = 1) {
+    if (val === undefined || val === null || isNaN(parseFloat(val))) return '--';
+    return parseFloat(val).toFixed(decimals);
+}
+
+function updateConnStatus(ok) {
+    const dot = document.getElementById('connDot');
+    const text = document.getElementById('connText');
+    if (ok) {
+        dot.style.background = '#9fe6b8';
+        dot.style.boxShadow = '0 0 8px #9fe6b8';
+        text.textContent = 'AWS API · Conectado';
+    } else {
+        dot.style.background = '#ff8a8a';
+        dot.style.boxShadow = '0 0 8px #ff8a8a';
+        text.textContent = 'AWS API · Sin conexión';
+    }
+}
+</script>
+</body>
+</html>
