@@ -251,12 +251,11 @@
         .view.active{ display:flex; flex-direction:column; }
 
         /* ============ MAP VIEW ============ */
-        #view-map{ flex-direction:row; }
+        #view-map{ flex-direction:column; }
         #map{
             flex:1;
             height:100%;
             background:var(--bg-1);
-            filter: saturate(0.05) contrast(1.05) brightness(0.95);
         }
 
         .map-fleet-panel{
@@ -444,23 +443,29 @@
         .leaflet-popup-content{ margin:12px 14px; }
         .leaflet-container a.leaflet-popup-close-button{ color:var(--text-2); }
 
-        .popup-vessel{ font-family:'Inter',sans-serif; }
+
+        .popup-vessel{min-width:260px;
+            font-family:'Inter',sans-serif;}
         .popup-vessel h4{
-            font-size:13px;
-            font-weight:700;
-            font-family:'JetBrains Mono',monospace;
-            margin-bottom:6px;
-            padding-bottom:6px;
-            border-bottom:1px solid var(--border);
+            color:#0ea5e9;
+            font-size:15px;
+            margin-bottom:10px;
         }
+        
         .popup-vessel .row{
             display:flex;
             justify-content:space-between;
-            font-size:12px;
-            color:var(--text-1);
-            padding:2px 0;
+            margin-bottom:6px;
         }
-        .popup-vessel .row b{ color:var(--text-0); font-family:'JetBrains Mono',monospace; }
+        
+        .popup-vessel .label{
+            color:#9ca3af;
+        }
+        
+        .popup-vessel .value{
+            color:white;
+            font-family:'JetBrains Mono',monospace;
+        }
 
         /* ============ RESPONSIVE ============ */
         @media (max-width:1024px){
@@ -561,10 +566,6 @@
             <div id="map"></div>
             <div class="map-coords-overlay">
                 LAT <span id="lblLat">--</span> &nbsp;·&nbsp; LON <span id="lblLon">--</span>
-            </div>
-            <div class="map-fleet-panel">
-                <h3>Embarcaciones</h3>
-                <div id="fleetListMap"></div>
             </div>
         </div>
 
@@ -737,20 +738,39 @@ function initMap() {
 }
 
 /* Icono de barco tipo "gota invertida" estilo Google Maps, monocromático */
-function vesselIcon(statusColor) {
-    return L.divIcon({
-        className: 'vessel-pin',
-        html: `
-            <svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 0C7.6 0 0 7.6 0 17c0 11 17 27 17 27s17-16 17-27C34 7.6 26.4 0 17 0z"
-                      fill="${statusColor}" stroke="#0a0a0b" stroke-width="1.5"/>
-                <circle cx="17" cy="17" r="6.5" fill="#0a0a0b"/>
-                <path d="M13 17l3-3 3 3-3 3-3-3z" fill="${statusColor}"/>
-            </svg>`,
-        iconSize: [34, 44],
-        iconAnchor: [17, 44],
-        popupAnchor: [0, -40]
-    });
+function vesselIcon(){
+
+return L.divIcon({
+
+className:'',
+
+html:`
+<svg
+width="44"
+height="44"
+viewBox="0 0 64 64">
+
+<path
+d="M12 42L32 18L52 42L46 54H18Z"
+fill="#002E6D"
+stroke="#00122C"
+stroke-width="2"/>
+
+<rect
+x="28"
+y="8"
+width="8"
+height="14"
+fill="#002E6D"/>
+
+</svg>
+`,
+
+iconSize:[44,44],
+iconAnchor:[22,22],
+popupAnchor:[0,-20]
+
+});
 }
 
 function statusColorFor(vessel) {
@@ -813,38 +833,52 @@ function fetchVesselDetail(vesselId) {
    RENDER: MARCADORES EN EL MAPA
    ========================================================= */
 function renderFleetOnMap(fleet) {
+
+    const bounds = [];
+
     fleet.forEach(v => {
+
         const lat = parseFloat(v.latitude);
         const lon = parseFloat(v.longitude);
+
         if (isNaN(lat) || isNaN(lon)) return;
+
+        bounds.push([lat, lon]);
 
         const color = statusColorFor(v);
         const icon = vesselIcon(color);
 
         if (vesselMarkers[v.vessel_id]) {
+
             vesselMarkers[v.vessel_id].setLatLng([lat, lon]);
             vesselMarkers[v.vessel_id].setIcon(icon);
+
         } else {
+
             const marker = L.marker([lat, lon], { icon }).addTo(map);
+
             marker.on('click', () => {
                 selectedVessel = v.vessel_id;
                 fetchVesselDetail(v.vessel_id);
                 highlightSelectedCard();
             });
+
             vesselMarkers[v.vessel_id] = marker;
         }
 
-        vesselMarkers[v.vessel_id].setPopupContent(popupHtml(v));
+        vesselMarkers[v.vessel_id].setPopupContent(
+            popupHtml(v)
+        );
+
     });
 
-    // Centrar mapa la primera vez que hay datos
-    if (fleet.length > 0 && !window.__mapCentered) {
-        const lat = parseFloat(fleet[0].latitude);
-        const lon = parseFloat(fleet[0].longitude);
-        if (!isNaN(lat) && !isNaN(lon)) {
-            map.setView([lat, lon], 9);
-            window.__mapCentered = true;
-        }
+    if (bounds.length > 0 && !window.__fleetZoomed) {
+
+        map.fitBounds(bounds, {
+            padding: [100,100]
+        });
+
+        window.__fleetZoomed = true;
     }
 }
 
@@ -1079,6 +1113,41 @@ function fmtNum(val, decimals = 1) {
     return parseFloat(val).toFixed(decimals);
 }
 
+function popupHtml(v){
+
+return `
+<div class="popup-vessel">
+
+<h4>${v.vessel_id}</h4>
+
+<div class="row">
+<span class="label">Último reporte</span>
+<span class="value">${v.last_update}</span>
+</div>
+
+<div class="row">
+<span class="label">Velocidad</span>
+<span class="value">${v.speed_knots} kn</span>
+</div>
+
+<div class="row">
+<span class="label">Rumbo</span>
+<span class="value">${v.course_degrees}°</span>
+</div>
+
+<div class="row">
+<span class="label">Batería</span>
+<span class="value">${v.battery_voltage} V</span>
+</div>
+
+<div class="row">
+<span class="label">Estado</span>
+<span class="value">${commandLabel(v.active_command)}</span>
+</div>
+
+</div>
+`;
+}
 function updateConnStatus(ok) {
     const dot = document.getElementById('connDot');
     const text = document.getElementById('connText');
