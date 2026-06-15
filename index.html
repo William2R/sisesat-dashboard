@@ -32,11 +32,11 @@
         *{ box-sizing:border-box; margin:0; padding:0; }
 
         html,body{
-            height:100%;
+            min-height:100%;
             font-family:'Inter',sans-serif;
             background:var(--bg-0);
             color:var(--text-0);
-            overflow:hidden;
+            overflow:auto;
         }
         body, input, button, textarea, select {
             font-family:'Inter',sans-serif;
@@ -49,8 +49,8 @@
         /* ============ LAYOUT ============ */
         .app{
             display:flex;
-            height:100vh;
-            width:100vw;
+            min-height:100vh;
+            width:100%;
         }
 
         /* ============ SIDEBAR ============ */
@@ -62,7 +62,8 @@
             display:flex;
             flex-direction:column;
             transition:width .25s ease, min-width .25s ease;
-            z-index:50;
+            z-index:1000;
+            position:relative;
         }
         .sidebar.collapsed{
             width:var(--sidebar-w-collapsed);
@@ -94,8 +95,9 @@
             white-space:nowrap;
             opacity:1;
             transition:opacity .15s ease;
+            overflow:hidden;
         }
-        .sidebar.collapsed .brand-text{ opacity:0; width:0; }
+        .sidebar.collapsed .brand-text{ opacity:0; width:0; overflow:hidden; }
 
         .brand-text strong{
             font-size:16px;
@@ -124,7 +126,21 @@
             transition:all .15s ease;
         }
         .collapse-btn:hover{ background:var(--bg-3); color:var(--text-0); }
-        .sidebar.collapsed .collapse-btn{ transform:rotate(180deg); }
+        .sidebar.collapsed .collapse-btn{ transform:none; }
+        .sidebar.collapsed .sidebar-header{
+            justify-content:center;
+            gap:10px;
+        }
+        .sidebar.collapsed .brand{
+            justify-content:flex-start;
+            width:100%;
+            min-width:0;
+        }
+        .sidebar.collapsed .brand-text{
+            opacity:0;
+            width:0;
+            overflow:hidden;
+        }
 
         .nav{
             flex:1;
@@ -154,7 +170,8 @@
             opacity:1;
             transition:opacity .15s ease;
         }
-        .sidebar.collapsed .nav-item span{ opacity:0; width:0; }
+        .sidebar.collapsed .nav-item span{ opacity:0; width:0; overflow:hidden; }
+        .sidebar:not(.collapsed) .nav-item span{ opacity:1; width:auto; }
         .sidebar.collapsed .nav-item{ justify-content:center; padding:11px; }
 
         .nav-item:hover{
@@ -202,7 +219,7 @@
             flex:1;
             display:flex;
             flex-direction:column;
-            height:100vh;
+            min-height:100vh;
             overflow:hidden;
             background:var(--bg-0);
         }
@@ -247,7 +264,8 @@
 
         .view{
             flex:1;
-            overflow:hidden;
+            min-height:0;
+            overflow:auto;
             display:none;
             position:relative;
         }
@@ -352,6 +370,30 @@
             font-size:12px;
             color:var(--text-2);
         }
+        .kpi-mini-list.vertical{
+            display:flex;
+            flex-direction:column;
+            align-items:flex-start;
+            margin-top:0;
+            gap:6px;
+            justify-content:center;
+            min-width:120px;
+        }
+        .kpi-live-row{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:18px;
+            width:100%;
+        }
+        .kpi-mini-list.vertical span{
+            width:100%;
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            padding:0;
+            border-top:none;
+        }
         .kpi-mini-list span{
             display:flex;
             justify-content:space-between;
@@ -361,8 +403,10 @@
         }
         .panel-grid{
             display:grid;
-            grid-template-columns:1.2fr 0.8fr;
+            grid-template-columns:repeat(2, minmax(0, 1fr));
             gap:18px;
+            align-items:stretch;
+            min-width:0;
         }
         .panel-item{
             background:var(--bg-1);
@@ -372,6 +416,11 @@
             display:flex;
             flex-direction:column;
             gap:18px;
+            min-width:0;
+            min-height:360px;
+        }
+        .chart-box{
+            min-height:300px;
         }
         .health-summary{
             display:grid;
@@ -422,16 +471,15 @@
             border-left-width:5px;
             border-left-style:solid;
         }
-        .summary-item .summary-icon{
-            width:42px;
-            height:42px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            border-radius:14px;
-            background:rgba(255,255,255,0.06);
-            font-size:18px;
+        .summary-delta{
+            font-size:12px;
+            font-weight:700;
+            letter-spacing:0.8px;
+            text-transform:uppercase;
+            align-self:flex-start;
         }
+        .summary-delta.positive{ color:#9fe6b8; }
+        .summary-delta.negative{ color:#ff8a8a; }
         .summary-item strong{
             font-size:32px;
             font-family:'Inter',sans-serif;
@@ -459,20 +507,46 @@
         }
 
         @media (max-width:1024px){
-            .sidebar{ position:fixed; height:100vh; }
+            .sidebar{ position:fixed; top:0; left:0; bottom:0; height:100vh; z-index:1000; }
             .sidebar:not(.collapsed){
                 width:240px;
+                min-width:240px;
                 box-shadow:0 0 40px rgba(0,0,0,0.5);
             }
-            .sidebar.collapsed{ width:0; min-width:0; border:none; }
-            .main{ width:100%; }
+            .sidebar.collapsed{ width:var(--sidebar-w-collapsed); min-width:var(--sidebar-w-collapsed); border:none; }
+            .main{ width:100%; margin-left:0; }
+            .view{ overflow:auto; }
             .stats-grid{ grid-template-columns:repeat(2,1fr); }
             .panel-grid{ grid-template-columns:1fr; }
             .summary-grid{ grid-template-columns:repeat(2,1fr); }
+            .topbar-sub{ display:none; }
         }
         @media (max-width:640px){
+            .sidebar{
+                position:fixed;
+                top:0;
+                left:0;
+                bottom:0;
+                width:100%;
+                min-width:100%;
+                z-index:1000;
+            }
+            .sidebar.collapsed{
+                width:76px;
+                min-width:76px;
+            }
+            .sidebar:not(.collapsed){
+                width:100%;
+                min-width:100%;
+            }
+            .main{ margin-left:0; width:100%; }
+            .topbar{ padding:0 16px; }
             .stats-grid{ grid-template-columns:1fr; }
             .summary-grid{ grid-template-columns:1fr; }
+            .panel-grid{ grid-template-columns:1fr; }
+            .summary-item{ min-height:140px; }
+            .card-note{ display:none; }
+            .view{ padding-bottom: 24px; }
             .topbar-sub{ display:none; }
         }
         .panel h3{
@@ -583,8 +657,10 @@
         }
         .history-wrap table{ font-size:12px; }
 
-        .fleet-table-wrap{ margin-top:18px; }
-        table{ width:100%; border-collapse:collapse; font-size:13px; }
+        .fleet-table-wrap{ margin-top:18px; overflow-x:auto; }
+        .fleet-table-wrap table{ min-width:700px; width:100%; border-collapse:collapse; font-size:13px; }
+        .history-wrap{ overflow-x:auto; }
+        .history-wrap table{ min-width:700px; width:100%; border-collapse:collapse; }
         th{
             text-align:left;
             font-size:11px;
@@ -654,12 +730,39 @@
                 width:240px;
                 box-shadow:0 0 40px rgba(0,0,0,0.5);
             }
-            .sidebar.collapsed{ width:0; min-width:0; border:none; }
+            .sidebar.collapsed{ width:var(--sidebar-w-collapsed); min-width:var(--sidebar-w-collapsed); border:none; }
             .main{ width:100%; }
             .stats-grid{ grid-template-columns:repeat(2,1fr); }
+            .panel-grid{ grid-template-columns:1fr; }
+            .summary-grid{ grid-template-columns:repeat(2,1fr); }
+            .topbar-sub{ display:none; }
         }
         @media (max-width:640px){
-            .stats-grid{ grid-template-columns:repeat(2,1fr); }
+            .sidebar{
+                position:fixed;
+                top:0;
+                left:0;
+                bottom:0;
+                width:100%;
+                min-width:100%;
+                z-index:1000;
+            }
+            .sidebar.collapsed{
+                width:76px;
+                min-width:76px;
+            }
+            .sidebar:not(.collapsed){
+                width:100%;
+                min-width:100%;
+            }
+            .main{ margin-left:0; width:100%; }
+            .topbar{ padding:0 16px; }
+            .stats-grid{ grid-template-columns:1fr; }
+            .summary-grid{ grid-template-columns:1fr; }
+            .panel-grid{ grid-template-columns:1fr; }
+            .summary-item{ min-height:140px; }
+            .card-note{ display:none; }
+            .view{ padding-bottom: 24px; }
             .topbar-sub{ display:none; }
         }
     </style>
@@ -672,16 +775,18 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand">
-                <!-- Narval icon -->
-                <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M58 30c-4-6-12-10-20-10-3 0-6 .5-8.5 1.5L8 18l6 11-6 11 21.5-3.5C32 38.5 35 39 38 39c8 0 16-4 20-10z" fill="#f5f5f6"/>
-                    <path d="M58 30L62 24" stroke="#f5f5f6" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="40" cy="27" r="2" fill="#0a0a0b"/>
-                    <path d="M16 24l-5-3M16 36l-5 3" stroke="#f5f5f6" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- Boat icon -->
+                <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Boat logo">
+                    <!-- hull -->
+                    <path d="M6 40c10 6 18 6 26 6s16 0 26-6c0 0-6-10-26-10S6 40 6 40z" fill="#f5f5f6" />
+                    <!-- cabin/sail -->
+                    <path d="M30 18 L38 10 L38 34 L30 34 Z" fill="#f5f5f6" />
+                    <!-- mast -->
+                    <rect x="30" y="8" width="2" height="10" fill="#f5f5f6" />
                 </svg>
                 <div class="brand-text">
-                    <strong>SISESAT</strong>
-                    <span>TYPE D · NARVAL</span>
+                    <strong id="brandTitle">NARVAL INC</strong>
+                    <span id="brandSubtitle">TYPE D · NARVAL</span>
                 </div>
             </div>
             <div class="collapse-btn" id="collapseBtn" title="Plegar menú">
@@ -745,29 +850,29 @@
                     <div class="sub">Instantaneous operational snapshot for the whole system.</div>
                     <div class="summary-grid">
                         <div class="summary-item summary-total">
-                            <div class="summary-icon">🏁</div>
-                            <span>Total vessels</span>
+                            <span class="summary-delta" id="summaryTotalDelta">+0%</span>
                             <strong id="summaryTotal">0</strong>
+                            <span>Total vessels</span>
                         </div>
                         <div class="summary-item summary-active">
-                            <div class="summary-icon">⚡</div>
-                            <span>Active vessels</span>
+                            <span class="summary-delta" id="summaryActiveDelta">+0%</span>
                             <strong id="summaryActive">0</strong>
+                            <span>Active vessels</span>
                         </div>
                         <div class="summary-item summary-port">
-                            <div class="summary-icon">⚓</div>
-                            <span>In port</span>
+                            <span class="summary-delta" id="summaryInPortDelta">+0%</span>
                             <strong id="summaryInPort">0</strong>
+                            <span>In port</span>
                         </div>
                         <div class="summary-item summary-offline">
-                            <div class="summary-icon">📴</div>
-                            <span>Offline vessels</span>
+                            <span class="summary-delta" id="summaryOfflineDelta">+0%</span>
                             <strong id="summaryOffline">0</strong>
+                            <span>Offline vessels</span>
                         </div>
                         <div class="summary-item summary-alerts">
-                            <div class="summary-icon">🚨</div>
-                            <span>Active alerts</span>
+                            <span class="summary-delta" id="summaryAlertsDelta">+0%</span>
                             <strong id="summaryAlerts">0</strong>
+                            <span>Active alerts</span>
                         </div>
                     </div>
                 </div>
@@ -788,9 +893,11 @@
                 <div class="stats-grid" id="fleetKpiGrid">
                     <div class="stat-card kpi-card">
                         <div class="label">Live Telemetry</div>
-                        <div class="value" id="kpiLiveTelemetry">0</div>
+                        <div class="kpi-live-row">
+                            <div class="value" id="kpiLiveTelemetry">0</div>
+                            <div class="kpi-mini-list vertical" id="kpiLiveBreakdown"></div>
+                        </div>
                         <div class="card-note">Normal / Out of coverage / Offline</div>
-                        <div class="kpi-mini-list" id="kpiLiveBreakdown"></div>
                     </div>
                     <div class="stat-card kpi-card">
                         <div class="label">Active Alerts</div>
@@ -857,6 +964,7 @@ let map, pathPolyline;
 let vesselMarkers = {};   // vessel_id -> L.marker
 let fleetData = {};       // vessel_id -> dashboard_response
 let selectedVessel = null;
+let previousSummaryTotals = null;
 let voltageChart, speedChart;
 let fleetStatusChart, batteryHealthChart;
 
@@ -878,13 +986,39 @@ window.onload = function () {
 function initSidebar() {
     const sidebar = document.getElementById('sidebar');
     const btn = document.getElementById('collapseBtn');
+    const brandTitle = document.getElementById('brandTitle');
+    const brandSubtitle = document.getElementById('brandSubtitle');
+
+    brandTitle.textContent = 'NARVAL INC';
+    brandSubtitle.textContent = 'TYPE D · NARVAL';
+
+    const updateSidebarToggle = () => {
+        const expandedIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
+        const collapsedIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`;
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        btn.innerHTML = isCollapsed ? collapsedIcon : expandedIcon;
+        btn.title = isCollapsed ? 'Abrir menú' : 'Plegar menú';
+    };
+
     btn.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
+        updateSidebarToggle();
         setTimeout(() => { if (map) map.invalidateSize(); }, 260);
     });
 
     // En móvil arranca colapsado
     if (window.innerWidth <= 1024) sidebar.classList.add('collapsed');
+    updateSidebarToggle();
+
+    window.addEventListener('resize', () => {
+        const isMobile = window.innerWidth <= 1024;
+        if (isMobile) {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+        }
+        updateSidebarToggle();
+    });
 }
 
 /* =========================================================
@@ -953,20 +1087,36 @@ function initMap() {
 
 /* Icono de marcador estilo Google Maps en azul oscuro */
 function vesselIcon(v) {
-    const color = '#0d47a1'; // Azul oscuro similar a Google Maps
+    const fill = '#0d1b3e'; // dark blue to match page
+    const stroke = '#2e2e33'; // subtle grey border
     const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 40" width="24" height="40">
-            <path d="M12 0C7.03 0 3 4.03 3 9c0 6.42 7.84 16.92 8.28 17.45.36.44 1.02.44 1.38 0C13.16 25.92 21 15.42 21 9c0-4.97-4.03-9-9-9zm0 13.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 4.5 12 4.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5z" fill="${color}"/>
-            <path d="M12 0c-5 0-9 4-9 9 0 4.4 2.27 9.48 5.66 14.24C10.06 28.72 11.97 30.93 12 31c.03-.07 1.94-2.28 3.34-7.76C18.73 18.48 21 13.4 21 9c0-5-4-9-9-9z" fill="#ffffff" opacity="0.12"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 64" width="28" height="44">
+          <path d="M24 0C14 0 6 8 6 18c0 12 14 31 15 32.5.66.8 2 .8 2.66 0C28 49 42 30 42 18 42 8 34 0 24 0z" fill="${fill}" stroke="${stroke}" stroke-width="2" />
+                    <!-- anchor glyph centered inside the pin (smaller, inside border) -->
+                    <g transform="translate(0,6)">
+                        <g transform="translate(8,6) scale(0.72)" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                            <!-- shaft -->
+                            <path d="M16 2v10" />
+                            <!-- ring -->
+                            <circle cx="16" cy="2" r="1.6" fill="#ffffff" />
+                            <!-- arms/stock -->
+                            <path d="M6 18c3.5-3 9.5-3 14 0" />
+                            <!-- flukes -->
+                            <path d="M6 18c-2 2-4 6 6 8" />
+                            <path d="M34 18c2 2 4 6-6 8" />
+                        </g>
+                    </g>
         </svg>
     `;
+
     const iconUrl = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg.trim());
 
     return L.icon({
         iconUrl: iconUrl,
-        iconSize: [24, 40],
-        iconAnchor: [12, 40],
-        popupAnchor: [0, -38]
+        iconSize: [28, 44],
+        iconAnchor: [14, 44],
+        popupAnchor: [0, -40],
+        className: 'vessel-marker-icon'
     });
 }
 
@@ -1085,22 +1235,45 @@ function renderStatsBars(fleet) {
         else batteryCategories.low += 1;
     });
 
-    document.getElementById('kpiTotalVessels').textContent = totals.total;
-    document.getElementById('kpiActiveVessels').textContent = totals.active;
     document.getElementById('kpiLiveTelemetry').textContent = totals.active;
     document.getElementById('kpiActiveAlerts').textContent = totals.alerts;
-    document.getElementById('kpiInPort').textContent = totals.inPort;
     document.getElementById('kpiNoTelemetry').textContent = totals.noTelemetry;
     document.getElementById('kpiAvgVoltage').textContent = averageBattery ? `${averageBattery.toFixed(2)} V` : '--';
-    document.getElementById('healthHigh').textContent = batteryCategories.high;
-    document.getElementById('healthMedium').textContent = batteryCategories.medium;
-    document.getElementById('healthLow').textContent = batteryCategories.low;
 
     document.getElementById('summaryTotal').textContent = totals.total;
     document.getElementById('summaryActive').textContent = totals.active;
     document.getElementById('summaryInPort').textContent = totals.inPort;
     document.getElementById('summaryOffline').textContent = totals.offline;
     document.getElementById('summaryAlerts').textContent = totals.alerts;
+
+    const calculateDelta = (current, previous) => {
+        if (previous === null || previous === undefined || previous === 0) return 0;
+        return Math.round(((current - previous) / Math.abs(previous)) * 100);
+    };
+
+    const deltas = {
+        total: calculateDelta(totals.total, previousSummaryTotals?.total),
+        active: calculateDelta(totals.active, previousSummaryTotals?.active),
+        inPort: calculateDelta(totals.inPort, previousSummaryTotals?.inPort),
+        offline: calculateDelta(totals.offline, previousSummaryTotals?.offline),
+        alerts: calculateDelta(totals.alerts, previousSummaryTotals?.alerts)
+    };
+
+    const renderDelta = (id, value) => {
+        const node = document.getElementById(id);
+        if (!node) return;
+        node.textContent = value === 0 ? '0%' : `${value > 0 ? '+' : ''}${value}%`;
+        node.classList.toggle('positive', value >= 0);
+        node.classList.toggle('negative', value < 0);
+    };
+
+    renderDelta('summaryTotalDelta', deltas.total);
+    renderDelta('summaryActiveDelta', deltas.active);
+    renderDelta('summaryInPortDelta', deltas.inPort);
+    renderDelta('summaryOfflineDelta', deltas.offline);
+    renderDelta('summaryAlertsDelta', deltas.alerts);
+
+    previousSummaryTotals = { ...totals };
 
     const liveBreakdown = document.getElementById('kpiLiveBreakdown');
     liveBreakdown.innerHTML = `
